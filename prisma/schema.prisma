@@ -1,0 +1,81 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model User {
+  id             BigInt           @id @default(autoincrement())
+  userName       String?          @db.VarChar(256)
+  userAccount    String           @unique(map: "uni_userAccount") @db.VarChar(256)
+  gender         Int?             @db.TinyInt
+  userPassword   String           @db.VarChar(512)
+  created_at     DateTime?        @default(now()) @db.DateTime(0)
+  updated_at     DateTime?        @default(now()) @db.DateTime(0)
+  rating         rating[]
+  recommendation recommendation[]
+
+  @@map("user")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model movie {
+  id             BigInt           @id @default(autoincrement())
+  title          String           @db.VarChar(500)
+  genres         String?          @db.VarChar(200)
+  year           Int?
+  director       String?          @db.VarChar(200)
+  actors         String?          @db.Text
+  description    String?          @db.Text
+  posterUrl      String?          @db.VarChar(500)
+  avgRating      Decimal?         @default(0.00) @db.Decimal(3, 2)
+  ratingCount    Int?             @default(0)
+  created_at     DateTime?        @default(now()) @db.DateTime(0)
+  updated_at     DateTime?        @default(now()) @db.DateTime(0)
+  rating         rating[]
+  recommendation recommendation[]
+
+  @@index([avgRating], map: "idx_avgRating")
+  @@index([genres], map: "idx_genres")
+  @@index([year], map: "idx_year")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model rating {
+  id         BigInt    @id @default(autoincrement())
+  userId     BigInt
+  movieId    BigInt
+  rating     Decimal   @db.Decimal(2, 1)
+  timestamp  BigInt?
+  created_at DateTime? @default(now()) @db.DateTime(0)
+  updated_at DateTime? @default(now()) @db.DateTime(0)
+  movie      movie     @relation(fields: [movieId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_rating_movie")
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_rating_user")
+
+  @@unique([userId, movieId], map: "uk_user_movie")
+  @@index([movieId], map: "idx_movieId")
+  @@index([timestamp], map: "idx_timestamp")
+  @@index([userId], map: "idx_userId")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model recommendation {
+  id         BigInt    @id @default(autoincrement())
+  userId     BigInt
+  movieId    BigInt
+  score      Decimal   @db.Decimal(10, 8)
+  rank       Int?
+  algorithm  String?   @default("ALS") @db.VarChar(50)
+  created_at DateTime? @default(now()) @db.DateTime(0)
+  movie      movie     @relation(fields: [movieId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_recommendation_movie")
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_recommendation_user")
+
+  @@unique([userId, movieId, algorithm], map: "uk_user_movie_algo")
+  @@index([movieId], map: "idx_movieId")
+  @@index([userId, score(sort: Desc)], map: "idx_userId_score")
+}
