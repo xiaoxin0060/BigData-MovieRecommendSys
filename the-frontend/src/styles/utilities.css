@@ -1,0 +1,340 @@
+/**
+ * 工具类（Utility Classes）
+ * 基于深色主题规范，提供高复用性的原子类
+ */
+
+/* ==================== Layout - Flexbox ==================== */
+.flex { display: flex; }
+.flex-col { display: flex; flex-direction: column; }
+.flex-wrap { flex-wrap: wrap; }
+
+/* Align & Justify */
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.flex-start {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.flex-end {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.items-start { align-items: flex-start; }
+.items-center { align-items: center; }
+.items-end { align-items: flex-end; }
+
+.justify-start { justify-content: flex-start; }
+.justify-center { justify-content: center; }
+.justify-end { justify-content: flex-end; }
+.justify-between { justify-content: space-between; }
+
+.flex-1 { flex: 1; }
+.flex-auto { flex: auto; }
+.flex-none { flex: none; }
+
+/* ==================== Spacing - Margin ==================== */
+.m-0 { margin: 0; }
+.m-xs { margin: var(--spacing-xs); }
+.m-sm { margin: var(--spacing-sm); }
+.m-md { margin: var(--spacing-md); }
+.m-lg { margin: var(--spacing-lg); }
+.m-xl { margin: var(--spacing-xl); }
+.m-xxl { margin: var(--spacing-xxl); }
+
+.mt-0 { margin-top: 0; }
+.mt-xs { margin-top: var(--spacing-xs); }
+.mt-sm { margin-top: var(--spacing-sm); }
+.mt-md { margin-top: var(--spacing-md); }
+.mt-lg { margin-top: var(--spacing-lg); }
+.mt-xl { margin-top: var(--spacing-xl); }
+.mt-xxl { margin-top: var(--spacing-xxl); }
+
+.mb-0 { margin-bottom: 0; }
+.mb-xs { margin-bottom: var(--spacing-xs); }
+.mb-sm { margin-bottom: var(--spacing-sm); }
+.mb-md { margin-bottom: var(--spacing-md); }
+.mb-lg { margin-bottom: var(--spacing-lg); }
+.mb-xl { margin-bottom: var(--spacing-xl); }
+.mb-xxl { margin-bottom: var(--spacing-xxl); }
+
+.ml-0 { margin-left: 0; }
+.ml-xs { margin-left: var(--spacing-xs); }
+.ml-sm { margin-left: var(--spacing-sm); }
+.ml-md { margin-left: var(--spacing-md); }
+.ml-lg { margin-left: var(--spacing-lg); }
+.ml-xl { margin-left: var(--spacing-xl); }
+
+.mr-0 { margin-right: 0; }
+.mr-xs { margin-right: var(--spacing-xs); }
+.mr-sm { margin-right: var(--spacing-sm); }
+.mr-md { margin-right: var(--spacing-md); }
+.mr-lg { margin-right: var(--spacing-lg); }
+.mr-xl { margin-right: var(--spacing-xl); }
+
+.mx-auto { margin-left: auto; margin-right: auto; }
+
+/* ==================== Spacing - Padding ==================== */
+.p-0 { padding: 0; }
+.p-xs { padding: var(--spacing-xs); }
+.p-sm { padding: var(--spacing-sm); }
+.p-md { padding: var(--spacing-md); }
+.p-lg { padding: var(--spacing-lg); }
+.p-xl { padding: var(--spacing-xl); }
+.p-xxl { padding: var(--spacing-xxl); }
+
+.pt-0 { padding-top: 0; }
+.pt-xs { padding-top: var(--spacing-xs); }
+.pt-sm { padding-top: var(--spacing-sm); }
+.pt-md { padding-top: var(--spacing-md); }
+.pt-lg { padding-top: var(--spacing-lg); }
+.pt-xl { padding-top: var(--spacing-xl); }
+
+.pb-0 { padding-bottom: 0; }
+.pb-xs { padding-bottom: var(--spacing-xs); }
+.pb-sm { padding-bottom: var(--spacing-sm); }
+.pb-md { padding-bottom: var(--spacing-md); }
+.pb-lg { padding-bottom: var(--spacing-lg); }
+.pb-xl { padding-bottom: var(--spacing-xl); }
+
+.pl-xs { padding-left: var(--spacing-xs); }
+.pl-sm { padding-left: var(--spacing-sm); }
+.pl-md { padding-left: var(--spacing-md); }
+.pl-lg { padding-left: var(--spacing-lg); }
+
+.pr-xs { padding-right: var(--spacing-xs); }
+.pr-sm { padding-right: var(--spacing-sm); }
+.pr-md { padding-right: var(--spacing-md); }
+.pr-lg { padding-right: var(--spacing-lg); }
+
+/* ==================== Typography - Text Alignment ==================== */
+.text-left { text-align: left; }
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+
+/* ==================== Typography - Text Color ==================== */
+.text-primary { color: var(--color-text-primary); }
+.text-secondary { color: var(--color-text-secondary); }
+.text-tertiary { color: var(--color-text-tertiary); }
+.text-disabled { color: var(--color-text-disabled); }
+
+.text-accent { color: var(--color-accent-blue); }
+.text-success { color: var(--color-success); }
+.text-warning { color: var(--color-warning); }
+.text-error { color: var(--color-error); }
+.text-info { color: var(--color-info); }
+
+/* ==================== Typography - Font Size ==================== */
+.text-xs { font-size: var(--font-size-xs); }
+.text-sm { font-size: var(--font-size-sm); }
+.text-base { font-size: var(--font-size-base); }
+.text-lg { font-size: var(--font-size-lg); }
+.text-xl { font-size: var(--font-size-xl); }
+.text-2xl { font-size: var(--font-size-2xl); }
+.text-3xl { font-size: var(--font-size-3xl); }
+.text-4xl { font-size: var(--font-size-4xl); }
+
+/* ==================== Typography - Font Weight ==================== */
+.font-normal { font-weight: var(--font-weight-normal); }
+.font-medium { font-weight: var(--font-weight-medium); }
+.font-semibold { font-weight: var(--font-weight-semibold); }
+.font-bold { font-weight: var(--font-weight-bold); }
+
+/* ==================== Typography - Text Truncate ==================== */
+.text-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.line-clamp-1 {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ==================== Width & Height ==================== */
+.w-full { width: 100%; }
+.w-auto { width: auto; }
+.w-screen { width: 100vw; }
+
+.h-full { height: 100%; }
+.h-auto { height: auto; }
+.h-screen { height: 100vh; }
+
+.max-w-screen { max-width: 100vw; }
+.max-w-xl { max-width: 1200px; }
+.max-w-lg { max-width: 960px; }
+.max-w-md { max-width: 768px; }
+.max-w-sm { max-width: 640px; }
+
+/* ==================== Display ==================== */
+.block { display: block; }
+.inline { display: inline; }
+.inline-block { display: inline-block; }
+.hidden { display: none; }
+
+/* ==================== Border Radius ==================== */
+.rounded-none { border-radius: 0; }
+.rounded-xs { border-radius: var(--radius-xs); }
+.rounded-sm { border-radius: var(--radius-sm); }
+.rounded-md { border-radius: var(--radius-md); }
+.rounded-lg { border-radius: var(--radius-lg); }
+.rounded-xl { border-radius: var(--radius-xl); }
+.rounded-full { border-radius: var(--radius-full); }
+
+/* ==================== Shadow ==================== */
+.shadow-none { box-shadow: none; }
+.shadow-sm { box-shadow: var(--color-shadow-sm); }
+.shadow-md { box-shadow: var(--color-shadow-md); }
+.shadow-lg { box-shadow: var(--color-shadow-lg); }
+.shadow-xl { box-shadow: var(--color-shadow-xl); }
+
+/* ==================== Cursor ==================== */
+.cursor-pointer { cursor: pointer; }
+.cursor-not-allowed { cursor: not-allowed; }
+.cursor-default { cursor: default; }
+
+/* ==================== Transitions ==================== */
+.transition {
+  transition: all var(--transition-base);
+}
+
+.transition-fast {
+  transition: all var(--transition-fast);
+}
+
+.transition-slow {
+  transition: all var(--transition-slow);
+}
+
+.transition-colors {
+  transition: color var(--transition-base),
+              background-color var(--transition-base),
+              border-color var(--transition-base);
+}
+
+/* ==================== Interactive - Hover Effects ==================== */
+.hover-lift {
+  transition: transform var(--transition-base);
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px);
+}
+
+.hover-scale {
+  transition: transform var(--transition-base);
+}
+
+.hover-scale:hover {
+  transform: scale(1.05);
+}
+
+/* ==================== Container ==================== */
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 var(--spacing-md);
+}
+
+.container-fluid {
+  width: 100%;
+  padding: 0 var(--spacing-md);
+}
+
+/* ==================== Divider ==================== */
+.divider {
+  height: 1px;
+  background: var(--color-border);
+  margin: var(--spacing-md) 0;
+}
+
+.divider-vertical {
+  width: 1px;
+  background: var(--color-border);
+  margin: 0 var(--spacing-md);
+}
+
+/* ==================== Card ==================== */
+.card {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  box-shadow: var(--color-shadow-md);
+  transition: all var(--transition-base);
+}
+
+.card:hover {
+  box-shadow: var(--color-shadow-lg);
+}
+
+/* ==================== Badge ==================== */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: var(--color-badge-bg);
+  color: var(--color-badge-text);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+}
+
+/* ==================== Loading ==================== */
+.loading {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-accent-blue);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ==================== Responsive Utilities ==================== */
+@media (max-width: 768px) {
+  .mobile-hidden { display: none; }
+  .mobile-full { width: 100%; }
+}
+
+@media (min-width: 769px) {
+  .desktop-hidden { display: none; }
+}
+

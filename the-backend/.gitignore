@@ -1,0 +1,28 @@
+# ==================== 后端特定规则 ====================
+# Node.js + Express + Prisma 项目
+
+# ===== Prisma 生成的文件 =====
+/src/generated/
+
+# ===== 上传文件 =====
+/uploads/
+/public/uploads/
+
+# ===== 日志 =====
+logs/
+
+# ===== 临时文件 =====
+/tmp/
+
+# ===== 会话存储 =====
+sessions/
+
+# ===== 构建产物（如果有） =====
+dist/
+build/
+
+# ===== Express 生成器遗留（已清理，但防止重新生成） =====
+/public/images/
+/public/javascripts/
+/public/stylesheets/
+

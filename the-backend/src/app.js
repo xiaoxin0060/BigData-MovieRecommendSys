@@ -13,13 +13,20 @@ app.use(cookieParser());
 
 // ===== CORS 配置（允许 Vue 前端跨域访问）=====
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:8080',  // Vue 开发服务器地址
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',  // Vue 3 + Vite 默认端口
   credentials: true  // 允许携带 Cookie
 }));
 
 // ===== API 路由 =====
 const userApiRoutes = require('./features/users/users.routes');
+const movieApiRoutes = require('./features/movies/movies.routes');
+const ratingApiRoutes = require('./features/ratings/ratings.routes');
+const recommendationApiRoutes = require('./features/recommendations/recommendations.routes');
+
 app.use('/api/users', userApiRoutes);
+app.use('/api/movies', movieApiRoutes);
+app.use('/api/ratings', ratingApiRoutes);
+app.use('/api/recommendations', recommendationApiRoutes);
 
 // ===== 健康检查接口 =====
 app.get('/api/health', function(req, res) {
