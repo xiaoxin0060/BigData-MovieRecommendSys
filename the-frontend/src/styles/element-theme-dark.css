@@ -358,7 +358,64 @@
   color: var(--color-text-secondary);
 }
 
-/* ==================== 下拉菜单 ==================== */
+/* ==================== Select 选择器（重要！） ==================== */
+/* Select 输入框本体 */
+.el-select__wrapper {
+  background-color: var(--color-input-bg) !important;       /* 深色背景 */
+  box-shadow: 0 0 0 1px var(--color-input-border) inset !important;
+  transition: all var(--transition-base);
+}
+
+.el-select__wrapper:hover {
+  box-shadow: 0 0 0 1px var(--color-border-strong) inset !important;
+}
+
+.el-select__wrapper.is-focused {
+  box-shadow: 0 0 0 1px var(--color-input-border-focus) inset !important;
+}
+
+/* Select 下拉箭头和文字 */
+.el-select__placeholder {
+  color: var(--color-input-placeholder);
+}
+
+.el-select__selected-item {
+  color: var(--color-text-primary);
+}
+
+.el-select__suffix {
+  color: var(--color-text-secondary);
+}
+
+/* Select 下拉面板 */
+.el-select-dropdown {
+  background-color: var(--color-bg-secondary) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-md);
+  box-shadow: var(--color-shadow-lg) !important;
+}
+
+.el-select-dropdown__item {
+  color: var(--color-text-primary);
+  transition: all var(--transition-fast);
+}
+
+.el-select-dropdown__item:hover {
+  background-color: var(--color-row-hover) !important;
+}
+
+.el-select-dropdown__item.is-selected {
+  background-color: var(--color-row-selected) !important;
+  color: var(--color-accent-blue);
+  font-weight: var(--font-weight-medium);
+}
+
+.el-select-dropdown__item.is-disabled {
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
+/* ==================== 下拉菜单（Dropdown） ==================== */
 .el-dropdown-menu {
   background-color: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
