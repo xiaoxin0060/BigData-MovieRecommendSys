@@ -14,10 +14,13 @@ CREATE TABLE IF NOT EXISTS `user` (
     `userAccount` varchar(256) NOT NULL COMMENT '用户账号',
     `gender` tinyint DEFAULT NULL COMMENT '性别(0-女 1-男)',
     `userPassword` varchar(512) NOT NULL COMMENT '用户密码',
+    `mlUserId` bigint DEFAULT NULL COMMENT 'MovieLens 用户ID（仅导入用）',
+    `source` varchar(20) DEFAULT NULL COMMENT '数据来源（ML=MovieLens, CRAWL=抓取）',
     `created_at` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uni_userAccount` (`userAccount`)
+    UNIQUE KEY `uni_userAccount` (`userAccount`),
+    UNIQUE KEY `uk_mlUserId` (`mlUserId`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
 COMMENT='用户表';
 
@@ -27,12 +30,17 @@ COMMENT='用户表';
 CREATE TABLE IF NOT EXISTS `movie` (
     `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     `title` varchar(500) NOT NULL COMMENT '电影标题',
+    `originalTitle` varchar(500) DEFAULT NULL COMMENT '原始标题（可选，英文或原语种）',
     `genres` varchar(200) DEFAULT NULL COMMENT '类型（多个用|分隔，如：动作|冒险|科幻）',
     `year` int DEFAULT NULL COMMENT '上映年份',
     `director` varchar(200) DEFAULT NULL COMMENT '导演',
     `actors` text DEFAULT NULL COMMENT '演员（多个用|分隔）',
     `description` text DEFAULT NULL COMMENT '电影简介',
     `posterUrl` varchar(500) DEFAULT NULL COMMENT '海报URL',
+    `mlMovieId` bigint DEFAULT NULL COMMENT 'MovieLens 电影ID（仅导入用）',
+    `imdbId` varchar(20) DEFAULT NULL COMMENT 'IMDB ID（来自 links.csv）',
+    `tmdbId` varchar(20) DEFAULT NULL COMMENT 'TMDB ID（来自 links.csv）',
+    `source` varchar(20) DEFAULT 'ML' COMMENT '数据来源（ML=MovieLens, CRAWL=抓取）',
     `avgRating` decimal(3,2) DEFAULT 0.00 COMMENT '平均评分（0.00-5.00）',
     `ratingCount` int DEFAULT 0 COMMENT '评分人数',
     `created_at` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -40,7 +48,10 @@ CREATE TABLE IF NOT EXISTS `movie` (
     PRIMARY KEY (`id`),
     KEY `idx_year` (`year`),
     KEY `idx_avgRating` (`avgRating`),
-    KEY `idx_genres` (`genres`)
+    KEY `idx_genres` (`genres`),
+    UNIQUE KEY `uk_mlMovieId` (`mlMovieId`),
+    KEY `idx_imdbId` (`imdbId`),
+    KEY `idx_tmdbId` (`tmdbId`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
 COMMENT='电影信息表';
 

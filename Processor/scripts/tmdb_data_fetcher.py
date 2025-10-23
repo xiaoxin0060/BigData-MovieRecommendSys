@@ -28,17 +28,17 @@ TMDB_CONFIG = {
 
 # Kafka 配置
 KAFKA_CONFIG = {
-    'bootstrap_servers': '10.1.20.11:9092',
+    'bootstrap_servers': 'hadoop-master:9092,hadoop-worker1:9092,hadoop-worker2:9092',
     'topic_movies': 'movies',
     'topic_ratings': 'ratings'
 }
 
 # MySQL 配置（用于查询映射和避免重复）
 MYSQL_CONFIG = {
-    'host': '110.42.61.85',
+    'host': 'hadoop-master',
     'port': 3306,
     'user': 'root',
-    'password': '124578aA',
+    'password': 'YourStrongRootPassword123!',  # ⚠️ 请修改为实际密码
     'database': 'movie',
     'charset': 'utf8mb4'
 }

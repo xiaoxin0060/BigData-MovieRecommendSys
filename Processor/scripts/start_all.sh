@@ -54,7 +54,7 @@ echo ""
 echo -e "${YELLOW}[2/5] 检查并创建 Kafka 主题...${NC}"
 # 创建 Kafka 主题（如果不存在）
 KAFKA_BIN="${KAFKA_HOME:-/opt/kafka}/bin"  # 从环境变量读取，默认 /opt/kafka
-BOOTSTRAP_SERVER="10.1.20.11:9092"
+BOOTSTRAP_SERVER="hadoop-master:9092,hadoop-worker1:9092,hadoop-worker2:9092"
 
 # 检查 kafka-topics.sh 是否存在
 if [ -f "$KAFKA_BIN/kafka-topics.sh" ]; then
@@ -62,7 +62,7 @@ if [ -f "$KAFKA_BIN/kafka-topics.sh" ]; then
     if ! $KAFKA_BIN/kafka-topics.sh --list --bootstrap-server $BOOTSTRAP_SERVER 2>/dev/null | grep -q "^movies$"; then
         $KAFKA_BIN/kafka-topics.sh --create --topic movies \
             --bootstrap-server $BOOTSTRAP_SERVER \
-            --partitions 3 --replication-factor 1 2>/dev/null || true
+            --partitions 3 --replication-factor 2 2>/dev/null || true
         echo -e "${GREEN}   ✓ 已创建 movies 主题${NC}"
     else
         echo -e "${GREEN}   ✓ movies 主题已存在${NC}"
@@ -72,7 +72,7 @@ if [ -f "$KAFKA_BIN/kafka-topics.sh" ]; then
     if ! $KAFKA_BIN/kafka-topics.sh --list --bootstrap-server $BOOTSTRAP_SERVER 2>/dev/null | grep -q "^ratings$"; then
         $KAFKA_BIN/kafka-topics.sh --create --topic ratings \
             --bootstrap-server $BOOTSTRAP_SERVER \
-            --partitions 3 --replication-factor 1 2>/dev/null || true
+            --partitions 3 --replication-factor 2 2>/dev/null || true
         echo -e "${GREEN}   ✓ 已创建 ratings 主题${NC}"
     else
         echo -e "${GREEN}   ✓ ratings 主题已存在${NC}"
