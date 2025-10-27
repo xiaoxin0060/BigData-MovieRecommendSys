@@ -1,0 +1,32 @@
+app:
+  name: recsys-processor
+
+mysql:
+  host: hadoop-master
+  port: 3306
+  database: movie
+  user: root
+  password: YourStrongRootPassword123!  # ⚠️ 请修改为实际密码
+  params: "useSSL=false&serverTimezone=UTC&characterEncoding=utf8&allowPublicKeyRetrieval=true&rewriteBatchedStatements=true&cachePrepStmts=true&prepStmtCacheSize=500&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&useLocalSessionState=true&useLocalTransactionState=true&elideSetAutoCommits=true&alwaysSendSetIsolation=false&cacheResultSetMetadata=true&cacheServerConfiguration=true&maintainTimeStats=false"
+
+kafka:
+  bootstrapServers: "hadoop-master:9092,hadoop-worker1:9092,hadoop-worker2:9092"
+  topicRatings: "ratings"
+  topicMovies: "movies"
+
+spark:
+  checkpointBase: "/checkpoints/recsys"
+  shufflePartitions: 80
+
+hdfs:
+  basePath: "/apps/recsys"
+
+# YARN 集群优化配置（8GB Worker 节点）
+als:
+  rank: 30          # 隐因子维度（提高推荐质量）
+  regParam: 0.1     # 正则化参数（标准值）
+  maxIter: 10       # 迭代次数（平衡质量和速度）tail -50 /opt/Processor/logs/tmdb-fetcher.log
+  
+  topN: 30          # 每用户推荐数量
+
+

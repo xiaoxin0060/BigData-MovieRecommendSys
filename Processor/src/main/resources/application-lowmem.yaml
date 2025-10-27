@@ -1,0 +1,32 @@
+app:
+  name: recsys-processor
+
+mysql:
+  host: hadoop-master
+  port: 3306
+  database: movie
+  user: root
+  password: YourStrongRootPassword123!  # ⚠️ 请修改为实际密码
+  params: "useSSL=false&serverTimezone=UTC&characterEncoding=utf8&allowPublicKeyRetrieval=true"
+
+kafka:
+  bootstrapServers: "hadoop-master:9092,hadoop-worker1:9092,hadoop-worker2:9092"
+  topicRatings: "ratings"
+  topicMovies: "movies"
+
+spark:
+  checkpointBase: "hdfs:///checkpoints/recsys"
+  shufflePartitions: 20
+
+hdfs:
+  basePath: "hdfs:///apps/recsys"
+
+# 低内存优化的 ALS 参数
+als:
+  rank: 10          # 降低到 10（原 64）
+  regParam: 0.3     # 稍微增加正则化
+  maxIter: 5        # 降低迭代次数（原 15）
+  topN: 20          # 每用户只推荐 20 部（原 50）
+
+
+
