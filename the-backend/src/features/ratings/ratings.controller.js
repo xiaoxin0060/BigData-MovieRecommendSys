@@ -193,9 +193,50 @@ async function getMovieRatings(req, res, next) {
   }
 }
 
+/**
+ * 获取用户对某部电影的评分
+ */
+async function getMyRatingForMovie(req, res, next) {
+  try {
+    const { movieId } = req.params;
+    const userId = req.userId;
+
+    const rating = await prisma.rating.findUnique({
+      where: {
+        userId_movieId: {
+          userId: BigInt(userId),
+          movieId: BigInt(movieId)
+        }
+      }
+    });
+
+    if (!rating) {
+      return res.json({
+        success: true,
+        data: {
+          rated: false,
+          rating: 0
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        rated: true,
+        rating: parseFloat(rating.rating)
+      }
+    });
+
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   createRating,
   getMyRatings,
-  getMovieRatings
+  getMovieRatings,
+  getMyRatingForMovie
 };
 

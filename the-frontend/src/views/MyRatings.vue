@@ -2,73 +2,121 @@
   <div class="my-ratings-page">
     <div class="container">
       <h1 class="text-3xl font-bold mb-lg">我的评分</h1>
-      
-      <!-- 
-        TODO: 这里添加我的评分内容
-        
-        建议实现：
-        1. 评分列表（表格或卡片形式）
-        2. 每条评分显示：电影信息 + 我的评分 + 评分时间
-        3. 可以修改评分
-        4. 可以删除评分
-        5. 分页功能
-        
-        布局提示：
-        - 使用 el-table 表格组件
-        - 或使用卡片网格布局
-        - 使用 el-rate 显示评分
-        - 使用 el-pagination 分页
-      -->
-      
-      <div class="placeholder">
-        <el-empty description="待开发：我的评分页面" />
+
+      <div v-if="loading" class="flex-center" style="min-height: 400px">
+        <el-icon class="is-loading" :size="40"><Loading /></el-icon>
+      </div>
+
+      <div v-else-if="ratings.length > 0">
+        <div class="ratings-grid">
+          <el-card 
+            v-for="item in ratings"
+            :key="item.id"
+            class="rating-card cursor-pointer transition hover-lift"
+            shadow="hover"
+            @click="goDetail(item.movie.id)"
+          >
+            <div class="flex" style="gap: var(--spacing-md)">
+              <img
+                :src="item.movie.posterUrl || '/1.jpg'"
+                :alt="item.movie.title"
+                class="rating-poster rounded-md"
+              />
+              
+              <div class="flex-1">
+                <h3 class="text-lg font-semibold mb-xs line-clamp-2">{{ item.movie.title }}</h3>
+                <p class="text-sm text-secondary mb-sm">{{ item.movie.genres }}</p>
+                <p class="text-xs text-tertiary mb-md">{{ item.movie.year }}</p>
+                
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="text-xs text-tertiary mb-xs">我的评分</p>
+                    <el-rate 
+                      v-model="item.rating" 
+                      :max="5"
+                      disabled
+                      show-score
+                      score-template="{value} 分"
+                    />
+                  </div>
+                  <span class="text-xs text-tertiary">
+                    {{ formatDate(item.createdAt) }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </el-card>
+        </div>
+
+        <el-pagination
+          v-if="total > 0"
+          :current-page="queryParams.page"
+          :page-size="queryParams.pageSize"
+          :total="total"
+          background
+          layout="prev, pager, next, total"
+          @current-change="handlePageChange"
+          class="mt-xl"
+        />
+      </div>
+
+      <div v-else class="flex-center" style="min-height: 400px">
+        <el-empty description="还没有评分">
+          <template #description>
+            <p class="text-sm text-secondary">快去给看过的电影打分吧！</p>
+          </template>
+        </el-empty>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-// TODO: 导入需要的 API 和工具
-// import { ref, onMounted } from 'vue'
-// import { getMyRatings } from '@/api/rating'
+import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { getMyRatings } from '@/api/rating'
+import { Loading } from '@element-plus/icons-vue'
 
-// TODO: 定义响应式数据
-// const ratings = ref([])
-// const loading = ref(false)
-// const pagination = ref({
-//   page: 1,
-//   pageSize: 10,
-//   total: 0
-// })
+const router = useRouter()
+const ratings = ref([])
+const loading = ref(false)
+const total = ref(0)
 
-// TODO: 加载我的评分
-// onMounted(async () => {
-//   await loadRatings()
-// })
+const queryParams = reactive({
+  page: 1,
+  pageSize: 10
+})
 
-// async function loadRatings() {
-//   loading.value = true
-//   try {
-//     const res = await getMyRatings({
-//       page: pagination.value.page,
-//       pageSize: pagination.value.pageSize
-//     })
-//     ratings.value = res.data.ratings
-//     pagination.value.total = res.data.pagination.total
-//   } finally {
-//     loading.value = false
-//   }
-// }
+async function fetchRatings() {
+  loading.value = true
+  try {
+    const res = await getMyRatings(queryParams)
+    ratings.value = res.data.ratings
+    total.value = res.data.pagination.total
+  } catch (error) {
+    console.error('获取评分失败:', error)
+  } finally {
+    loading.value = false
+  }
+}
 
-// TODO: 修改评分
-// async function updateRating(movieId, newRating) {
-//   // 调用更新 API
-// }
+function handlePageChange(page) {
+  queryParams.page = page
+  fetchRatings()
+}
 
-// TODO: 删除评分
-// async function deleteRating(movieId) {
-//   // 调用删除 API
-// }
+function goDetail(id) {
+  router.push(`/movies/${id}`)
+}
+
+function formatDate(date) {
+  if (!date) return ''
+  return new Date(date).toLocaleDateString('zh-CN')
+}
+
+onMounted(() => {
+  fetchRatings()
+})
 </script>
 
 <style scoped>
@@ -77,29 +125,25 @@
   padding: var(--spacing-xl) 0;
 }
 
-.placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 400px;
+.ratings-grid {
+  display: grid;
+  gap: var(--spacing-lg);
 }
 
-/* 
-  TODO: 添加评分列表样式
-  
-  示例：
-  .ratings-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: var(--spacing-lg);
-    margin-top: var(--spacing-xl);
-  }
-  
-  .rating-card {
-    display: flex;
-    gap: var(--spacing-md);
-    padding: var(--spacing-lg);
-  }
-*/
-</style>
+.rating-card {
+  width: 100%;
+}
 
+.rating-poster {
+  width: 100px;
+  height: 140px;
+  object-fit: cover;
+  background: var(--color-bg-tertiary);
+  flex-shrink: 0;
+}
+
+.el-pagination {
+  display: flex;
+  justify-content: center;
+}
+</style>

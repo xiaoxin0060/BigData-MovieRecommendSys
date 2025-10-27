@@ -46,3 +46,14 @@ export function getProfile() {
   })
 }
 
+/**
+ * 获取用户统计数据
+ * @returns {Promise}
+ */
+export function getUserStats() {
+  return request({
+    url: '/users/stats',
+    method: 'GET'
+  })
+}
+

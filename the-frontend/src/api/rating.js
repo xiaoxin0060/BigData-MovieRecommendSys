@@ -33,3 +33,14 @@ export function getMyRatings(params) {
   })
 }
 
+/**
+ * 获取我对某部电影的评分
+ * @param {string} movieId - 电影ID
+ * @returns {Promise}
+ */
+export function getMyRatingForMovie(movieId) {
+  return request({
+    url: `/ratings/check/${movieId}`,
+    method: 'GET'
+  })
+}

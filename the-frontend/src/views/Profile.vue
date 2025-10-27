@@ -2,57 +2,120 @@
   <div class="profile-page">
     <div class="container">
       <h1 class="text-3xl font-bold mb-lg">个人中心</h1>
-      
-      <!-- 
-        TODO: 这里添加个人中心内容
-        
-        建议实现：
-        1. 用户头像 + 基本信息卡片
-        2. 统计数据（评分数量、推荐数量等）
-        3. 个人信息编辑表单
-        4. 修改密码功能
-        
-        布局提示：
-        - 使用 card 类创建卡片
-        - 使用 el-avatar 头像组件
-        - 使用 el-form 表单组件
-        - 使用 el-statistic 统计组件
-      -->
-      
-      <div class="placeholder">
-        <el-empty description="待开发：个人中心页面" />
-        <p class="text-sm text-secondary mt-md">
-          当前用户: {{ userStore.userInfo?.userName || '未登录' }}
-        </p>
+
+      <div class="profile-grid">
+        <div class="card p-xl">
+          <div class="flex-center flex-col">
+            <el-avatar :size="100" class="mb-lg">
+              <el-icon :size="50"><User /></el-icon>
+            </el-avatar>
+            
+            <h2 class="text-2xl font-bold mb-xs">{{ userStore.userInfo?.userName || '用户' }}</h2>
+            <p class="text-sm text-secondary mb-lg">{{ userStore.userInfo?.userAccount }}</p>
+            
+            <div class="flex" style="gap: var(--spacing-md)">
+              <el-tag v-if="userStore.userInfo?.gender === 1" type="info">男</el-tag>
+              <el-tag v-else-if="userStore.userInfo?.gender === 0" type="info">女</el-tag>
+              <el-tag type="success">活跃用户</el-tag>
+            </div>
+          </div>
+        </div>
+
+        <div class="card p-lg">
+          <h3 class="text-xl font-semibold mb-lg">数据统计</h3>
+          
+          <div class="stats-grid">
+            <div class="stat-item">
+              <el-icon :size="32" color="var(--color-accent-blue)" class="mb-sm">
+                <StarFilled />
+              </el-icon>
+              <p class="text-3xl font-bold text-primary mb-xs">{{ stats.ratingsCount }}</p>
+              <p class="text-sm text-secondary">我的评分</p>
+            </div>
+            
+            <div class="stat-item">
+              <el-icon :size="32" color="var(--movie-primary)" class="mb-sm">
+                <Film />
+              </el-icon>
+              <p class="text-3xl font-bold text-primary mb-xs">{{ stats.recommendationsCount }}</p>
+              <p class="text-sm text-secondary">推荐电影</p>
+            </div>
+            
+            <div class="stat-item">
+              <el-icon :size="32" color="var(--movie-gold)" class="mb-sm">
+                <TrophyBase />
+              </el-icon>
+              <p class="text-3xl font-bold text-primary mb-xs">{{ stats.avgRating }}</p>
+              <p class="text-sm text-secondary">平均评分</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card p-lg">
+          <h3 class="text-xl font-semibold mb-lg">快速入口</h3>
+          
+          <div class="quick-links">
+            <el-button 
+              class="w-full" 
+              size="large"
+              @click="router.push('/my-ratings')"
+            >
+              <el-icon class="mr-sm"><Star /></el-icon>
+              我的评分
+            </el-button>
+            
+            <el-button 
+              class="w-full" 
+              size="large"
+              @click="router.push('/recommendations')"
+            >
+              <el-icon class="mr-sm"><MagicStick /></el-icon>
+              个性化推荐
+            </el-button>
+            
+            <el-button 
+              class="w-full" 
+              size="large"
+              @click="router.push('/movies')"
+            >
+              <el-icon class="mr-sm"><Film /></el-icon>
+              浏览电影
+            </el-button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
+import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { getUserStats } from '@/api/user'
+import { User, StarFilled, Film, TrophyBase, Star, MagicStick } from '@element-plus/icons-vue'
 
+const router = useRouter()
 const userStore = useUserStore()
 
-// TODO: 导入需要的 API 和工具
-// import { ref } from 'vue'
-// import { getProfile } from '@/api/user'
+const stats = ref({
+  ratingsCount: 0,
+  recommendationsCount: 0,
+  avgRating: '0.0'
+})
 
-// TODO: 定义响应式数据
-// const userStats = ref({
-//   ratingsCount: 0,
-//   recommendationsCount: 0
-// })
+async function loadStats() {
+  try {
+    const res = await getUserStats()
+    stats.value = res.data
+  } catch (error) {
+    console.error('获取统计数据失败:', error)
+  }
+}
 
-// TODO: 加载用户统计数据
-// async function loadUserStats() {
-//   // 调用统计 API
-// }
-
-// TODO: 编辑个人信息
-// async function updateProfile() {
-//   // 调用更新 API
-// }
+onMounted(() => {
+  loadStats()
+})
 </script>
 
 <style scoped>
@@ -61,33 +124,44 @@ const userStore = useUserStore()
   padding: var(--spacing-xl) 0;
 }
 
-.placeholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 400px;
+.profile-grid {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: var(--spacing-lg);
 }
 
-/* 
-  TODO: 添加个人中心样式
-  
-  示例：
-  .profile-header {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-lg);
-    padding: var(--spacing-xl);
-    background: var(--color-bg-secondary);
-    border-radius: var(--radius-lg);
-  }
-  
-  .profile-stats {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: var(--spacing-lg);
-    margin-top: var(--spacing-lg);
-  }
-*/
-</style>
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-lg);
+}
 
+.stat-item {
+  text-align: center;
+  padding: var(--spacing-lg);
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-base);
+}
+
+.stat-item:hover {
+  background: var(--color-row-hover);
+  transform: translateY(-2px);
+}
+
+.quick-links {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+@media (max-width: 768px) {
+  .profile-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

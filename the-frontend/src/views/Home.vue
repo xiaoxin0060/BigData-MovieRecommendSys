@@ -17,9 +17,13 @@
               <el-icon class="mr-xs"><Film /></el-icon>
               浏览电影
             </el-button>
-            <el-button size="large" @click="router.push('/register')">
+            <el-button v-if="!userStore.isLoggedIn" size="large" @click="router.push('/register')">
               <el-icon class="mr-xs"><UserFilled /></el-icon>
               立即注册
+            </el-button>
+            <el-button v-else size="large" @click="router.push('/recommendations')">
+              <el-icon class="mr-xs"><MagicStick /></el-icon>
+              查看推荐
             </el-button>
           </div>
         </div>
@@ -100,8 +104,10 @@
 
 <script setup>
 import { useRouter } from 'vue-router'
+import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
+const userStore = useUserStore()
 </script>
 
 <style scoped>

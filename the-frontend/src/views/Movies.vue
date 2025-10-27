@@ -9,7 +9,7 @@
           <div class="filter-item search-box">
             <el-input
               v-model="queryParams.keyword"
-              placeholder="搜索电影名称...(接口暂不支持)"
+              placeholder="搜索电影名称..."
               clearable
               @keyup.enter="handleSearch"
               @clear="handleSearch"
@@ -18,38 +18,6 @@
                 <el-icon><Search /></el-icon>
               </template>
             </el-input>
-          </div>
-          
-          <div class="filter-item">
-            <el-select 
-              v-model="queryParams.genre" 
-              placeholder="🎬 类型"
-              clearable
-              @change="handleSearch"
-            >
-              <el-option label="剧情" value="剧情" />
-              <el-option label="动作" value="动作" />
-              <el-option label="喜剧" value="喜剧" />
-              <el-option label="科幻" value="科幻" />
-              <el-option label="爱情" value="爱情" />
-              <el-option label="悬疑" value="悬疑" />
-            </el-select>
-          </div>
-          
-          <div class="filter-item">
-            <el-select 
-              v-model="queryParams.year" 
-              placeholder="📅 年份"
-              clearable
-              @change="handleSearch"
-            >
-              <el-option label="2024" :value="2024" />
-              <el-option label="2023" :value="2023" />
-              <el-option label="2020" :value="2020" />
-              <el-option label="2010" :value="2010" />
-              <el-option label="2000" :value="2000" />
-              <el-option label="1990" :value="1990" />
-            </el-select>
           </div>
           
           <div class="filter-item">
@@ -86,13 +54,14 @@
           :key="movie.id"
           class="movie-card cursor-pointer transition hover-lift"
           shadow="hover"
+          @click="goDetail(movie.id)"
         >
           <template #header>
             <span class="text-lg font-semibold text-ellipsis">{{ movie.title }}</span>
           </template>
           
           <img
-            :src="movie.image || '/1.jpg'"
+            :src="movie.posterUrl || '/1.jpg'"
             :alt="movie.title"
             class="movie-poster w-full rounded-md"
           />
@@ -106,7 +75,7 @@
             </p>
             <p class="text-sm text-primary font-medium">
               <span class="text-tertiary">评分：</span>
-              <span class="text-accent">{{ movie.ratingCount }}</span>
+              <span class="text-accent">{{ movie.avgRating || 0 }}</span>
             </p>
           </div>
         </el-card>
@@ -133,8 +102,11 @@
 
 <script setup>
 import { ref, onMounted, reactive } from 'vue'
+import { useRouter } from 'vue-router'
 import { getMovies } from '@/api/movie'
 import { Loading, Search } from '@element-plus/icons-vue'
+
+const router = useRouter()
 
 const movies = ref([])
 const loading = ref(false)
@@ -144,8 +116,6 @@ const queryParams = reactive({
   page: 1,
   pageSize: 8,
   keyword: '',
-  genre: '',
-  year: null,
   sort: 'avgRating'
 })
 
@@ -172,6 +142,10 @@ function handlePageChange(page) {
   fetchMovies()
 }
 
+function goDetail(id) {
+  router.push(`/movies/${id}`)
+}
+
 onMounted(() => {
   fetchMovies()
 })
@@ -184,18 +158,17 @@ onMounted(() => {
   
   /* 组件私有变量 */
   --card-width: 240px;
-  --filter-item-min-width: 150px;
-  --search-box-min-width: 200px;
+  --filter-item-width: 200px;
+  --search-box-min-width: 300px;
 }
 
 /* 筛选栏 */
 .filter-item {
-  flex: 1;
-  min-width: var(--filter-item-min-width);
+  width: var(--filter-item-width);
 }
 
 .search-box {
-  flex: 2;
+  flex: 1;
   min-width: var(--search-box-min-width);
 }
 

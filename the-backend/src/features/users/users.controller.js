@@ -86,8 +86,21 @@ async function login(req, res, next) {
       });
     }
 
-    // 3. 验证密码
-    const isPasswordValid = await bcrypt.compare(userPassword, user.userPassword);
+    // 3. 验证密码（支持密文和明文）
+    let isPasswordValid = false;
+    
+    // 先尝试密文匹配（bcrypt）
+    try {
+      isPasswordValid = await bcrypt.compare(userPassword, user.userPassword);
+    } catch (error) {
+      // bcrypt 比对失败，可能是明文密码
+      isPasswordValid = false;
+    }
+    
+    // 如果密文匹配失败，尝试明文匹配（用于测试数据）
+    if (!isPasswordValid) {
+      isPasswordValid = (userPassword === user.userPassword);
+    }
 
     if (!isPasswordValid) {
       return res.status(401).json({
@@ -165,8 +178,47 @@ async function getProfile(req, res, next) {
   }
 }
 
+/**
+ * 获取用户统计数据
+ */
+async function getUserStats(req, res, next) {
+  try {
+    const userId = req.userId;
+
+    // 并行查询统计数据
+    const [ratingsCount, recommendationsCount, avgRatingData] = await Promise.all([
+      // 评分数量
+      prisma.rating.count({
+        where: { userId: BigInt(userId) }
+      }),
+      // 推荐数量
+      prisma.recommendation.count({
+        where: { userId: BigInt(userId) }
+      }),
+      // 平均评分
+      prisma.rating.aggregate({
+        where: { userId: BigInt(userId) },
+        _avg: { rating: true }
+      })
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        ratingsCount,
+        recommendationsCount,
+        avgRating: avgRatingData._avg.rating ? Number(avgRatingData._avg.rating).toFixed(1) : '0.0'
+      }
+    });
+
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   register,
   login,
-  getProfile
+  getProfile,
+  getUserStats
 };

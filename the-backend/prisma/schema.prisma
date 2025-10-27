@@ -8,13 +8,14 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model User {
   id             BigInt           @id @default(autoincrement())
   userName       String?          @db.VarChar(256)
   userAccount    String           @unique(map: "uni_userAccount") @db.VarChar(256)
   gender         Int?             @db.TinyInt
   userPassword   String           @db.VarChar(512)
+  mlUserId       BigInt?          @unique(map: "uk_mlUserId")
+  source         String?          @db.VarChar(20)
   created_at     DateTime?        @default(now()) @db.DateTime(0)
   updated_at     DateTime?        @default(now()) @db.DateTime(0)
   rating         rating[]
@@ -23,16 +24,20 @@ model User {
   @@map("user")
 }
 
-/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model movie {
   id             BigInt           @id @default(autoincrement())
   title          String           @db.VarChar(500)
+  originalTitle  String?          @db.VarChar(500)
   genres         String?          @db.VarChar(200)
   year           Int?
   director       String?          @db.VarChar(200)
   actors         String?          @db.Text
   description    String?          @db.Text
   posterUrl      String?          @db.VarChar(500)
+  mlMovieId      BigInt?          @unique(map: "uk_mlMovieId")
+  imdbId         String?          @db.VarChar(20)
+  tmdbId         String?          @db.VarChar(20)
+  source         String?          @default("ML") @db.VarChar(20)
   avgRating      Decimal?         @default(0.00) @db.Decimal(3, 2)
   ratingCount    Int?             @default(0)
   created_at     DateTime?        @default(now()) @db.DateTime(0)
@@ -43,6 +48,8 @@ model movie {
   @@index([avgRating], map: "idx_avgRating")
   @@index([genres], map: "idx_genres")
   @@index([year], map: "idx_year")
+  @@index([imdbId], map: "idx_imdbId")
+  @@index([tmdbId], map: "idx_tmdbId")
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments

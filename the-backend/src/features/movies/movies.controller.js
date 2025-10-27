@@ -8,20 +8,15 @@ async function getMovies(req, res, next) {
     const {
       page = 1,
       pageSize = 20,
-      genre,        // 类型筛选
-      year,         // 年份筛选
+      keyword,      // 关键词搜索
       sort = 'avgRating'  // 排序：avgRating | year | title
     } = req.query;
 
     // 构建查询条件
     const where = {};
     
-    if (genre) {
-      where.genres = { contains: genre };  // 模糊匹配类型
-    }
-    
-    if (year) {
-      where.year = parseInt(year);
+    if (keyword) {
+      where.title = { contains: keyword };  // 标题模糊匹配
     }
 
     // 排序配置
@@ -90,6 +85,14 @@ async function getMovieById(req, res, next) {
   try {
     const { id } = req.params;
 
+    // 检查 id 是否有效
+    if (!id || isNaN(id)) {
+      return res.status(400).json({
+        success: false,
+        message: '无效的电影ID'
+      });
+    }
+
     const movie = await prisma.movie.findUnique({
       where: { id: BigInt(id) }
     });
@@ -101,16 +104,34 @@ async function getMovieById(req, res, next) {
       });
     }
 
+    // 转换所有 BigInt 字段为字符串
+    const movieData = {
+      id: movie.id.toString(),
+      title: movie.title,
+      originalTitle: movie.originalTitle,
+      genres: movie.genres,
+      year: movie.year,
+      director: movie.director,
+      actors: movie.actors,
+      description: movie.description,
+      posterUrl: movie.posterUrl,
+      mlMovieId: movie.mlMovieId ? movie.mlMovieId.toString() : null,
+      imdbId: movie.imdbId,
+      tmdbId: movie.tmdbId,
+      source: movie.source,
+      avgRating: movie.avgRating ? parseFloat(movie.avgRating) : 0,
+      ratingCount: movie.ratingCount,
+      created_at: movie.created_at,
+      updated_at: movie.updated_at
+    };
+
     res.json({
       success: true,
-      data: {
-        ...movie,
-        id: movie.id.toString(),
-        avgRating: movie.avgRating ? parseFloat(movie.avgRating) : 0
-      }
+      data: movieData
     });
 
   } catch (error) {
+    console.error('获取电影详情错误:', error);
     next(error);
   }
 }

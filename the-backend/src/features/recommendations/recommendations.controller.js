@@ -8,64 +8,63 @@ const prisma = require('../../config/database');
 async function getMyRecommendations(req, res, next) {
   try {
     const userId = req.userId;
-    const { limit = 20, algorithm = 'ALS' } = req.query;
+    const { 
+      page = 1, 
+      pageSize = 8, 
+      algorithm = 'ALS' 
+    } = req.query;
 
-    // 从推荐表获取 Spark 计算的推荐结果
-    const recommendations = await prisma.recommendation.findMany({
-      where: {
-        userId: BigInt(userId),
-        algorithm: algorithm
-      },
-      include: {
-        movie: {
-          select: {
-            id: true,
-            title: true,
-            genres: true,
-            year: true,
-            posterUrl: true,
-            avgRating: true,
-            description: true
+    const skip = (parseInt(page) - 1) * parseInt(pageSize);
+    const take = parseInt(pageSize);
+
+    // 并行查询：推荐列表 + 总数
+    const [recommendations, total] = await Promise.all([
+      prisma.recommendation.findMany({
+        where: {
+          userId: BigInt(userId),
+          algorithm: algorithm
+        },
+        include: {
+          movie: {
+            select: {
+              id: true,
+              title: true,
+              genres: true,
+              year: true,
+              posterUrl: true,
+              avgRating: true,
+              description: true
+            }
           }
+        },
+        orderBy: [
+          { rank: 'asc' },
+          { score: 'desc' }
+        ],
+        skip,
+        take
+      }),
+      prisma.recommendation.count({
+        where: {
+          userId: BigInt(userId),
+          algorithm: algorithm
         }
-      },
-      orderBy: [
-        { rank: 'asc' },       // 先按排名
-        { score: 'desc' }      // 再按分数
-      ],
-      take: parseInt(limit)
-    });
+      })
+    ]);
 
-    // 如果没有推荐结果，返回热门电影作为备选
+    // 如果没有推荐结果，返回空数组
     if (recommendations.length === 0) {
-      const hotMovies = await prisma.movie.findMany({
-        orderBy: { avgRating: 'desc' },
-        take: parseInt(limit),
-        select: {
-          id: true,
-          title: true,
-          genres: true,
-          year: true,
-          posterUrl: true,
-          avgRating: true,
-          description: true
-        }
-      });
-
       return res.json({
         success: true,
-        message: '暂无个性化推荐，为您推荐热门电影',
+        message: '暂无个性化推荐',
         data: {
-          recommendations: hotMovies.map(movie => ({
-            movie: {
-              ...movie,
-              id: movie.id.toString(),
-              avgRating: movie.avgRating ? parseFloat(movie.avgRating) : 0
-            },
-            score: null,
-            rank: null,
-            reason: '热门推荐'
-          })),
+          recommendations: [],
+          pagination: {
+            page: parseInt(page),
+            pageSize: parseInt(pageSize),
+            total: 0,
+            totalPages: 0
+          },
           isPersonalized: false
         }
       });
@@ -88,6 +87,12 @@ async function getMyRecommendations(req, res, next) {
       success: true,
       data: {
         recommendations: result,
+        pagination: {
+          page: parseInt(page),
+          pageSize: parseInt(pageSize),
+          total,
+          totalPages: Math.ceil(total / parseInt(pageSize))
+        },
         isPersonalized: true,
         algorithm: algorithm
       }
