@@ -1,4 +1,5 @@
 const prisma = require('../../config/database');
+const { sendRatingEvent } = require('../../utils/kafkaProducer');
 
 /**
  * 用户给电影评分
@@ -37,6 +38,9 @@ async function createRating(req, res, next) {
       });
     }
 
+    // 使用 seconds 作为统一时间戳单位（与 Processor Kafka 消费端一致）
+    const ts = Math.floor(Date.now() / 1000);
+
     // 使用 upsert：如果已评分则更新，否则创建
     const userRating = await prisma.rating.upsert({
       where: {
@@ -47,14 +51,26 @@ async function createRating(req, res, next) {
       },
       update: {
         rating: ratingValue,
-        timestamp: BigInt(Date.now())
+        timestamp: BigInt(ts)
       },
       create: {
         userId: BigInt(userId),
         movieId: BigInt(movieId),
         rating: ratingValue,
-        timestamp: BigInt(Date.now())
+        timestamp: BigInt(ts)
       }
+    });
+
+    // 尝试将评分事件推送到 Kafka（不阻塞主流程）
+    const event = {
+      userId: Number(userId),
+      movieId: Number(movieId),
+      rating: ratingValue,
+      timestamp: ts
+    };
+    sendRatingEvent(event).catch(err => {
+      console.error('[ratings.controller] sendRatingEvent failed', err);
+      // 不影响 API 响应；可加入补偿/重试队列
     });
 
     // TODO: 更新电影的平均分和评分人数（可以用触发器或定时任务）

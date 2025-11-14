@@ -21,6 +21,7 @@
 
 | 组件 | Master | Worker1 | Worker2 | 说明 |
 |------|--------|---------|---------|------|
+| Flink | ✓ | ✓ | ✓ | 分布式计算框架 |
 | ZooKeeper | ✓ | ✓ | ✓ | 集群模式（3节点） |
 | Kafka | ✓ | ✓ | ✓ | 集群模式（3节点） |
 | HDFS NameNode | ✓ | - | - | 主节点 |
@@ -109,19 +110,29 @@ cd /opt/kafka
 nohup bin/kafka-server-start.sh config/server.properties > logs/kafka-worker2.log 2>&1 &
 ```
 
-#### 步骤 4：启动 Spark History Server（可选）
+#### 步骤 4：启动 Flink
+
+```bash
+# 在 hadoop-master 上启动 Flink 集群
+cd /opt/flink-1.17.0
+nohup bin/start-cluster.sh > logs/flink-start.log 2>&1 &
+```
+
+#### 步骤 5：启动 Spark History Server（可选）
 
 ```bash
 /opt/spark/sbin/start-history-server.sh
 ```
 
-#### 步骤 5：验证服务状态
+#### 步骤 6：验证服务状态
 
 ```bash
 # 在 master 节点
 jps
 
 # 应该看到：
+# - StandaloneSessionClusterEntrypoint (Flink JobManager)
+# - TaskManagerRunner (Flink TaskManager)
 # - QuorumPeerMain (ZooKeeper)
 # - NameNode
 # - DataNode
@@ -132,7 +143,7 @@ jps
 # - HistoryServer (如果启动了)
 ```
 
-#### 步骤 6：启动应用服务
+#### 步骤 7：启动应用服务
 
 ```bash
 cd /opt/Processor/scripts
@@ -167,12 +178,18 @@ cd /opt/Processor/scripts
 ./stop_all.sh
 ```
 
-#### 步骤 2：停止 Spark History Server
+#### 步骤 2：停止 Flink
+```bash
+cd /opt/flink-1.17.0
+bin/stop-cluster.sh
+```
+
+#### 步骤 3：停止 Spark History Server
 ```bash
 /opt/spark/sbin/stop-history-server.sh
 ```
 
-#### 步骤 3：停止 Kafka（在所有节点）
+#### 步骤 4：停止 Kafka（在所有节点）
 
 **在所有节点上执行：**
 ```bash
@@ -180,7 +197,7 @@ cd /opt/kafka
 bin/kafka-server-stop.sh
 ```
 
-#### 步骤 4：停止 Hadoop（在 master 节点）
+#### 步骤 5：停止 Hadoop（在 master 节点）
 
 ```bash
 # 停止 YARN
@@ -193,7 +210,7 @@ stop-dfs.sh
 # stop-all.sh
 ```
 
-#### 步骤 5：停止 ZooKeeper（在所有节点）
+#### 步骤 6：停止 ZooKeeper（在所有节点）
 
 **在所有节点上执行：**
 ```bash
@@ -237,6 +254,7 @@ done
 
 ### Web 界面访问
 
+- **Flink Web UI**: http://hadoop-master:8081
 - **HDFS NameNode UI**: http://hadoop-master:9870
 - **YARN ResourceManager UI**: http://hadoop-master:8088
 - **Spark History Server**: http://hadoop-master:18080
@@ -252,6 +270,9 @@ tail -f $HADOOP_HOME/logs/hadoop-*-resourcemanager-*.log
 # Kafka 日志
 tail -f /opt/kafka/logs/server.log
 tail -f /opt/kafka/logs/zookeeper.log
+
+# Flink 日志
+tail -f /opt/flink-1.17.0/log/flink-*.log
 
 # 应用日志
 tail -f /opt/Processor/logs/movies-ingest.log
@@ -323,7 +344,7 @@ rm -f /opt/Processor/logs/*.pid
 
 ## 📝 注意事项
 
-1. **启动顺序很重要**：必须按照 ZooKeeper → Hadoop → Kafka → 应用 的顺序启动
+1. **启动顺序很重要**：必须按照 Flink → ZooKeeper → Hadoop → Kafka → 应用 的顺序启动
 2. **集群模式**：在 worker 节点上也需要启动相应的服务
 3. **防火墙**：确保节点之间的端口互通
 4. **磁盘空间**：定期清理日志文件，避免磁盘占满
@@ -362,5 +383,5 @@ sleep 10
 
 ---
 
-**最后更新时间**: 2025-10-23
+**最后更新时间**: 2025-11-11
 

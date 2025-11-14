@@ -32,9 +32,30 @@ if [[ "$HOSTNAME" != *"master"* ]]; then
 fi
 
 #############################################
-# 1. 启动 Hadoop (HDFS + YARN)
+# 1. 启动 Flink
 #############################################
-echo -e "${YELLOW}[1/4] 启动 Hadoop 集群...${NC}"
+echo -e "${YELLOW}[1/5] 启动 Flink...${NC}"
+
+if jps | grep -q "StandaloneSessionClusterEntrypoint"; then
+    echo -e "${GREEN}   ✓ Flink 已在运行${NC}"
+else
+    if [ -d "/opt/flink-1.17.0" ]; then
+        echo -e "   启动 Flink..."
+        cd /opt/flink-1.17.0
+        nohup bin/start-cluster.sh > logs/flink-start.log 2>&1 &
+        sleep 5
+        echo -e "${GREEN}   ✓ Flink 启动完成${NC}"
+    else
+        echo -e "${RED}   ❌ 找不到 Flink 目录 /opt/flink-1.17.0${NC}"
+        exit 1
+    fi
+fi
+
+#############################################
+# 2. 启动 Hadoop (HDFS + YARN)
+#############################################
+echo ""
+echo -e "${YELLOW}[2/5] 启动 Hadoop 集群...${NC}"
 
 # 检查 HDFS 是否已运行
 if jps | grep -q "NameNode"; then
@@ -68,10 +89,10 @@ else
 fi
 
 #############################################
-# 2. 启动 ZooKeeper (如果未运行)
+# 3. 启动 ZooKeeper (如果未运行)
 #############################################
 echo ""
-echo -e "${YELLOW}[2/4] 检查 ZooKeeper 状态...${NC}"
+echo -e "${YELLOW}[3/5] 检查 ZooKeeper 状态...${NC}"
 
 if jps | grep -q "QuorumPeerMain"; then
     echo -e "${GREEN}   ✓ ZooKeeper 已在运行${NC}"
@@ -92,10 +113,10 @@ else
 fi
 
 #############################################
-# 3. 启动 Kafka
+# 4. 启动 Kafka
 #############################################
 echo ""
-echo -e "${YELLOW}[3/4] 检查 Kafka 状态...${NC}"
+echo -e "${YELLOW}[4/5] 检查 Kafka 状态...${NC}"
 
 if jps | grep -q "Kafka"; then
     echo -e "${GREEN}   ✓ Kafka 已在运行${NC}"
@@ -118,10 +139,10 @@ else
 fi
 
 #############################################
-# 4. 启动 Spark History Server (可选)
+# 5. 启动 Spark History Server (可选)
 #############################################
 echo ""
-echo -e "${YELLOW}[4/4] 启动 Spark History Server...${NC}"
+echo -e "${YELLOW}[5/5] 启动 Spark History Server...${NC}"
 
 if jps | grep -q "HistoryServer"; then
     echo -e "${GREEN}   ✓ Spark History Server 已在运行${NC}"
@@ -153,6 +174,7 @@ echo ""
 
 # 提供访问链接
 echo -e "${GREEN}Web 界面：${NC}"
+echo -e "  Flink Web UI:         http://hadoop-master:8081"
 echo -e "  HDFS NameNode:        http://hadoop-master:9870"
 echo -e "  YARN ResourceManager: http://hadoop-master:8088"
 echo -e "  Spark History:        http://hadoop-master:18080"

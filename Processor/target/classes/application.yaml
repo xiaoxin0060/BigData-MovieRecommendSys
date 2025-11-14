@@ -28,5 +28,22 @@ als:
   maxIter: 10       # 迭代次数（平衡质量和速度）tail -50 /opt/Processor/logs/tmdb-fetcher.log
   
   topN: 30          # 每用户推荐数量
+  # 模型持久化基路径（Streaming 回填会按 active_version 从此路径加载模型）
+  modelBasePath: "hdfs:///apps/recsys/models/als"
+
+  # 采样与读取并行度
+  sampleUserModBase: 100         # 哈希抽样基数 MOD 基
+  sampleUserModKeep: 40          # 保留比例（0..base-1 中的阈值）
+  includeTopPopularK: 5000       # 额外包含的热门物品覆盖数
+  maxRatingsPerUser: 200         # 每用户评分上限（按时间倒序）
+  readPartitions: 40             # JDBC 读取分区数
+  partitionUpperBound: 5000000   # userId 估计上界（用于 JDBC 分区）
+
+
+# 实时回填配置（针对新用户快速生成推荐）
+realtime:
+  minRatingsForFoldIn: 3         # 至少多少条评分才进行折叠求解（fold-in）
+  candidateLimit: 10000          # 候选物品规模（从热门里选）
+  microBatch: "5 seconds"        # Structured Streaming 触发间隔
 
 

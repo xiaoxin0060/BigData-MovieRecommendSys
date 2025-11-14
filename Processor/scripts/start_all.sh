@@ -82,34 +82,29 @@ else
 fi
 
 echo ""
-echo -e "${YELLOW}[3/5] 启动流处理作业 - 电影元数据入库...${NC}"
-# 启动 MoviesIngestJob
-nohup spark-submit \
-  --master yarn \
-  --deploy-mode client \
-  --class com.yourorg.recsys.streaming.MoviesIngestJob \
-  --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 \
-  --num-executors 1 \
-  --executor-cores 1 \
-  --executor-memory 1g \
-  --driver-memory 1g \
-  --jars $APP_JAR \
-  --conf spark.sql.shuffle.partitions=30 \
-  --conf spark.driver.extraClassPath=$APP_JAR \
-  --conf spark.executor.extraClassPath=$APP_JAR \
-  $APP_JAR \
-  > $LOG_DIR/movies-ingest.log 2>&1 &
+echo -e "${YELLOW}[3/5] 跳过电影元数据流处理（仅使用本地 MovieLens 数据）${NC}"
+echo -e "${GREEN}   ℹ️  MoviesIngestJob 已禁用（无需处理外部电影数据）${NC}"
+# 如需启用 TMDB 拉取，取消注释以下代码：
+# nohup spark-submit \
+#   --master yarn \
+#   --deploy-mode client \
+#   --class com.yourorg.recsys.streaming.MoviesIngestJob \
+#   --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 \
+#   --num-executors 1 \
+#   --executor-cores 1 \
+#   --executor-memory 1g \
+#   --driver-memory 1g \
+#   --conf spark.sql.shuffle.partitions=30 \
+#   $APP_JAR \
+#   > $LOG_DIR/movies-ingest.log 2>&1 &
+# MOVIES_JOB_PID=$!
+# echo $MOVIES_JOB_PID > $LOG_DIR/movies-ingest.pid
 
-MOVIES_JOB_PID=$!
-echo $MOVIES_JOB_PID > $LOG_DIR/movies-ingest.pid
-echo -e "${GREEN}   ✓ MoviesIngestJob 已启动 (PID: $MOVIES_JOB_PID)${NC}"
-echo -e "     日志: $LOG_DIR/movies-ingest.log"
-
-sleep 3
+sleep 1
 
 echo ""
 echo -e "${YELLOW}[4/5] 启动流处理作业 - 评分数据入库...${NC}"
-# 启动 RatingsIngestJob
+# 启动 RatingsIngestJob（修复：移除 --jars 误用）
 nohup spark-submit \
   --master yarn \
   --deploy-mode client \
@@ -119,10 +114,7 @@ nohup spark-submit \
   --executor-cores 1 \
   --executor-memory 1g \
   --driver-memory 1g \
-  --jars $APP_JAR \
   --conf spark.sql.shuffle.partitions=30 \
-  --conf spark.driver.extraClassPath=$APP_JAR \
-  --conf spark.executor.extraClassPath=$APP_JAR \
   $APP_JAR \
   > $LOG_DIR/ratings-ingest.log 2>&1 &
 
@@ -134,14 +126,37 @@ echo -e "     日志: $LOG_DIR/ratings-ingest.log"
 sleep 3
 
 echo ""
-echo -e "${YELLOW}[5/5] 启动 TMDB 数据拉取器...${NC}"
-# 启动 TMDB 拉取器
-cd $SCRIPTS_DIR
-nohup python3 tmdb_data_fetcher.py > $LOG_DIR/tmdb-fetcher.log 2>&1 &
-TMDB_PID=$!
-echo $TMDB_PID > $LOG_DIR/tmdb-fetcher.pid
-echo -e "${GREEN}   ✓ TMDB 拉取器已启动 (PID: $TMDB_PID)${NC}"
-echo -e "     日志: $LOG_DIR/tmdb-fetcher.log"
+echo -e "${YELLOW}[5/5] 启动实时推荐回填作业...${NC}"
+# 启动 RealtimeRecBackfillJob（修复：移除 --jars 误用）
+nohup spark-submit \
+  --master yarn \
+  --deploy-mode client \
+  --class com.yourorg.recsys.streaming.RealtimeRecBackfillJob \
+  --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 \
+  --num-executors 1 \
+  --executor-cores 1 \
+  --executor-memory 1g \
+  --driver-memory 1g \
+  --conf spark.sql.shuffle.partitions=30 \
+  $APP_JAR \
+  > $LOG_DIR/realtime-rec-backfill.log 2>&1 &
+
+REALTIME_JOB_PID=$!
+echo $REALTIME_JOB_PID > $LOG_DIR/realtime-rec-backfill.pid
+echo -e "${GREEN}   ✓ RealtimeRecBackfillJob 已启动 (PID: $REALTIME_JOB_PID)${NC}"
+echo -e "     日志: $LOG_DIR/realtime-rec-backfill.log"
+
+sleep 3
+
+echo ""
+echo -e "${YELLOW}[已禁用] TMDB 数据拉取器${NC}"
+echo -e "${GREEN}   ℹ️  TMDB 拉取器已禁用（仅使用本地 MovieLens 数据）${NC}"
+# 如需启用，取消注释以下代码：
+# cd $SCRIPTS_DIR
+# nohup python3 tmdb_data_fetcher.py > $LOG_DIR/tmdb-fetcher.log 2>&1 &
+# TMDB_PID=$!
+# echo $TMDB_PID > $LOG_DIR/tmdb-fetcher.pid
+# echo -e "${GREEN}   ✓ TMDB 拉取器已启动 (PID: $TMDB_PID)${NC}"
 
 echo ""
 echo -e "${GREEN}========================================${NC}"
@@ -150,23 +165,26 @@ echo -e "${GREEN}========================================${NC}"
 echo ""
 echo -e "运行中的服务："
 echo -e "  - Kafka"
-echo -e "  - MoviesIngestJob    (PID: $MOVIES_JOB_PID)"
-echo -e "  - RatingsIngestJob   (PID: $RATINGS_JOB_PID)"
-echo -e "  - TMDB 拉取器        (PID: $TMDB_PID)"
+echo -e "  - RatingsIngestJob       (PID: $RATINGS_JOB_PID)"
+echo -e "  - RealtimeRecBackfillJob (PID: $REALTIME_JOB_PID)"
+echo ""
+echo -e "已禁用的服务："
+echo -e "  - MoviesIngestJob  (仅使用本地数据)"
+echo -e "  - TMDB 拉取器      (仅使用本地数据)"
 echo ""
 echo -e "查看日志："
-echo -e "  tail -f $LOG_DIR/movies-ingest.log"
 echo -e "  tail -f $LOG_DIR/ratings-ingest.log"
-echo -e "  tail -f $LOG_DIR/tmdb-fetcher.log"
+echo -e "  tail -f $LOG_DIR/realtime-rec-backfill.log"
 echo ""
 echo -e "停止所有服务："
 echo -e "  $SCRIPTS_DIR/stop_all.sh"
 echo ""
 echo -e "监控 Spark UI："
-echo -e "  http://localhost:4040  (MoviesIngestJob)"
-echo -e "  http://localhost:4041  (RatingsIngestJob)"
+echo -e "  http://localhost:4040  (RatingsIngestJob)"
+echo -e "  http://localhost:4041  (RealtimeRecBackfillJob)"
 echo ""
-echo -e "${YELLOW}提示: 等待 10-20 秒后，流作业会开始消费数据${NC}"
+echo -e "${YELLOW}提示: MovieLens 数据已完整导入，现有 2500 万评分可用于训练${NC}"
 echo -e "${YELLOW}提示: 可以运行批训练: $SCRIPTS_DIR/run_batch_als.sh${NC}"
+echo -e "${YELLOW}提示: 如需实时评分流测试，请手动推送到 Kafka ratings 主题${NC}"
 echo ""
 

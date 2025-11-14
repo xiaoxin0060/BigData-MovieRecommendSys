@@ -39,6 +39,7 @@ public class RatingsIngestJob {
                 .format("kafka")
                 .option("kafka.bootstrap.servers", bootstrap)
                 .option("subscribe", topic)
+                .option("kafka.group.id", "ratings-ingest-group")  // 独立 Consumer Group
                 .option("startingOffsets", "latest")
                 .load();
 

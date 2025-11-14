@@ -78,11 +78,22 @@ model recommendation {
   score      Decimal   @db.Decimal(10, 8)
   rank       Int?
   algorithm  String?   @default("ALS") @db.VarChar(50)
+  model_version String  @default("v0") @db.VarChar(64)
   created_at DateTime? @default(now()) @db.DateTime(0)
   movie      movie     @relation(fields: [movieId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_recommendation_movie")
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_recommendation_user")
 
-  @@unique([userId, movieId, algorithm], map: "uk_user_movie_algo")
+  @@unique([userId, movieId, model_version], map: "ux_user_movie_version")
   @@index([movieId], map: "idx_movieId")
   @@index([userId, score(sort: Desc)], map: "idx_userId_score")
+  @@index([model_version], map: "idx_model_version")
+}
+
+model rec_model_meta {
+  id             Int       @id @default(1)
+  active_version String    @db.VarChar(64)
+  created_at     DateTime? @default(now()) @db.DateTime(0)
+  updated_at     DateTime? @default(now()) @db.DateTime(0)
+
+  @@map("rec_model_meta")
 }

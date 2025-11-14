@@ -82,7 +82,7 @@ async function login(req, res, next) {
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: '账号或密码错误'
+        message: '账号或密码错误1'     
       });
     }
 
@@ -105,7 +105,7 @@ async function login(req, res, next) {
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
-        message: '账号或密码错误'
+        message: '账号或密码错误2'
       });
     }
 

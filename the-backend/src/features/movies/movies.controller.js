@@ -29,7 +29,7 @@ async function getMovies(req, res, next) {
       orderBy.title = 'asc';
     }
 
-    // 分页查询
+    // 分页查询 
     const skip = (parseInt(page) - 1) * parseInt(pageSize);
     const take = parseInt(pageSize);
 

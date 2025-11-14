@@ -3,12 +3,10 @@ package com.yourorg.recsys.batch;
 import com.yourorg.recsys.util.Config;
 import com.yourorg.recsys.util.JdbcUtils;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.ml.evaluation.RegressionEvaluator;
 import org.apache.spark.ml.recommendation.ALS;
 import org.apache.spark.ml.recommendation.ALSModel;
 import org.apache.spark.sql.*;
-import org.apache.spark.sql.expressions.UserDefinedFunction;
-import org.apache.spark.sql.expressions.Window;
+ 
 import org.apache.spark.sql.expressions.WindowSpec;
 import org.apache.spark.sql.types.DataTypes;
 import org.slf4j.Logger;
@@ -17,6 +15,8 @@ import org.slf4j.LoggerFactory;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.util.Properties;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 import static org.apache.spark.sql.functions.*;
 
@@ -36,7 +36,7 @@ public class BatchAlsJob {
         SparkSession spark = SparkSession.builder()
                 .appName("BatchAlsJob")
                 .getOrCreate();
-        JavaSparkContext jsc = JavaSparkContext.fromSparkContext(spark.sparkContext());
+        // JavaSparkContext jsc = JavaSparkContext.fromSparkContext(spark.sparkContext());
         spark.sqlContext().setConf("spark.sql.shuffle.partitions",
                 String.valueOf(cfg.getInt("spark.shufflePartitions", 200)));
 
@@ -52,23 +52,44 @@ public class BatchAlsJob {
         props.setProperty("user", user);
         props.setProperty("password", pwd);
 
-        // Read rating table with optimized sampling for 8GB memory nodes
-        // Strategy: Take first 80,000 users with optimized parallel reading
-        String samplingQuery = "(SELECT userId, movieId, rating " +
+        // Read rating table with optimized sampling for limited-memory clusters
+        // Strategy: hash-based user sampling + optional popular item coverage
+        int sampleModBase = cfg.getInt("als.sampleUserModBase", 100);
+        int sampleModKeep = cfg.getInt("als.sampleUserModKeep", 40);
+        int includeTopK = cfg.getInt("als.includeTopPopularK", 5000);
+        int readPartitions = cfg.getInt("als.readPartitions", 40);
+        int userIdUpperBound = cfg.getInt("als.partitionUpperBound", 5000000);
+
+        String popularClause = includeTopK > 0
+                ? " OR movieId IN (SELECT movieId FROM (SELECT movieId FROM rating GROUP BY movieId ORDER BY COUNT(*) DESC LIMIT " + includeTopK + ") AS popular)"
+                : "";
+        String samplingQuery = "(SELECT userId, movieId, rating, timestamp " +
                 "FROM rating " +
-                "WHERE userId <= 80000" +  // 80k users, ~half of dataset
+                "WHERE (MOD(userId, " + sampleModBase + ") < " + sampleModKeep + ")" +
+                popularClause +
                 ") AS rating_sample";
         
-        // Optimized partitioned reading for maximum speed
-        // Key: More partitions = more parallelism = faster loading
+        // 🔧 Step 1: Query actual userId boundaries to avoid empty partitions
+        log.info("Querying actual userId range for optimal partitioning...");
+        String boundsQuery = "(SELECT MIN(userId) as minId, MAX(userId) as maxId FROM rating " +
+                "WHERE (MOD(userId, " + sampleModBase + ") < " + sampleModKeep + ")) AS bounds";
+        Dataset<Row> boundsDF = spark.read().jdbc(jdbcUrl, boundsQuery, props);
+        Row bounds = boundsDF.first();
+        long actualMin = bounds.isNullAt(0) ? 0 : bounds.getLong(0);
+        long actualMax = bounds.isNullAt(1) ? userIdUpperBound : bounds.getLong(1);
+        log.info("Actual userId range: {} to {} (will use for JDBC partitioning)", actualMin, actualMax);
+        
+        // 🔧 Step 2: Optimized partitioned reading with actual boundaries
+        // Key: More partitions = more parallelism, BUT must match actual data range
         Dataset<Row> ratings = spark.read()
-                .option("numPartitions", "40")  // 40 partitions for 4 cores
+                .option("numPartitions", String.valueOf(readPartitions))
                 .option("partitionColumn", "userId")
-                .option("lowerBound", "1")
-                .option("upperBound", "80000")
+                .option("lowerBound", String.valueOf(actualMin))  // 🔧 Use actual min
+                .option("upperBound", String.valueOf(actualMax))  // 🔧 Use actual max
                 .option("fetchsize", "10000")  // Larger fetch size for speed
                 .jdbc(jdbcUrl, samplingQuery, props)
-                .select(col("userId"), col("movieId"), col("rating"))
+                .select(col("userId"), col("movieId"), col("rating"), col("timestamp"))
+                .repartition(readPartitions, col("userId"))  // 🔧 Force uniform repartition after read
                 .cache();  // Cache data in memory for iterative ALS
 
         if (ratings.isEmpty()) {
@@ -77,19 +98,29 @@ public class BatchAlsJob {
             return;
         }
         
-        long totalRatings = ratings.count();
-        long uniqueUsers = ratings.select("userId").distinct().count();
-        long uniqueMovies = ratings.select("movieId").distinct().count();
+        // Cap max ratings per user to reduce skew and memory footprint
+        int maxRatingsPerUser = cfg.getInt("als.maxRatingsPerUser", 200);
+        WindowSpec userWin = org.apache.spark.sql.expressions.Window
+                .partitionBy("userId")
+                .orderBy(col("timestamp").desc());
+        Dataset<Row> ratingsCapped = ratings
+                .withColumn("rn", row_number().over(userWin))
+                .where(col("rn").leq(maxRatingsPerUser))
+                .drop("rn");
+
+        long totalRatings = ratingsCapped.count();
+        long uniqueUsers = ratingsCapped.select("userId").distinct().count();
+        long uniqueMovies = ratingsCapped.select("movieId").distinct().count();
         log.info("Loaded {} ratings from {} users and {} movies (sampled dataset)", 
                  totalRatings, uniqueUsers, uniqueMovies);
 
         // ALS expects int indices; cast safely and cache for performance
-        Dataset<Row> training = ratings
+        Dataset<Row> training = ratingsCapped
                 .withColumn("user", col("userId").cast(DataTypes.IntegerType))
                 .withColumn("item", col("movieId").cast(DataTypes.IntegerType))
                 .withColumn("label", col("rating").cast(DataTypes.FloatType))
                 .select("user", "item", "label")
-                .repartition(40)  // Repartition for better parallelism
+                .repartition(readPartitions)  // Repartition for better parallelism
                 .cache();  // Cache training data for iterative algorithm
         
         // Trigger cache materialization
@@ -116,6 +147,20 @@ public class BatchAlsJob {
         ALSModel model = als.fit(training);
         log.info("ALS training completed successfully.");
 
+        // Persist model and item factors for realtime backfill
+        final String modelVersion = new SimpleDateFormat("yyyyMMddHHmmss").format(new Date());
+        String modelBasePath = cfg.getString("als.modelBasePath", "hdfs:///apps/recsys/models/als");
+        String modelPath = modelBasePath + "/" + modelVersion;
+        try {
+            log.info("Saving ALS model to {}", modelPath);
+            model.write().overwrite().save(modelPath);
+            log.info("Saving item factors to {}/item_factors", modelPath);
+            model.itemFactors().write().mode(SaveMode.Overwrite).parquet(modelPath + "/item_factors");
+        } catch (Exception e) {
+            log.error("Failed to persist ALS model or item factors", e);
+            throw new RuntimeException(e);
+        }
+
         int topN = cfg.getInt("als.topN", 50);
         Dataset<Row> recs = model.recommendForAllUsers(topN)
                 .select(col("user"), explode(col("recommendations")).as("rec"))
@@ -128,6 +173,7 @@ public class BatchAlsJob {
         Dataset<Row> ranked = recs
                 .withColumn("rank", row_number().over(w))
                 .withColumn("algorithm", lit("ALS"))
+                .withColumn("model_version", lit(modelVersion))
                 .withColumn("created_at", current_timestamp());
 
         // Write to MySQL recommendation via optimized batch upsert
@@ -154,23 +200,22 @@ public class BatchAlsJob {
                 stmt.execute("SET SESSION foreign_key_checks = 0");  // Disable FK checks temporarily
                 stmt.close();
                 
-                String sql = "INSERT INTO recommendation (userId, movieId, score, `rank`, algorithm, created_at) " +
-                        "VALUES (?, ?, ?, ?, 'ALS', ?) " +
-                        "ON DUPLICATE KEY UPDATE score=VALUES(score), `rank`=VALUES(`rank`), created_at=VALUES(created_at)";
+                String sql = "INSERT INTO recommendation (userId, movieId, score, `rank`, algorithm, model_version, created_at) " +
+                        "VALUES (?, ?, ?, ?, 'ALS', ?, ?) " +
+                        "ON DUPLICATE KEY UPDATE score=VALUES(score), `rank`=VALUES(`rank`), algorithm=VALUES(algorithm), created_at=VALUES(created_at)";
                 ps = conn.prepareStatement(sql);
                 
                 int batchSize = 0;
-                int totalRows = 0;
                 while (iter.hasNext()) {
                     Row r = iter.next();
                     ps.setLong(1, r.getLong(r.fieldIndex("userId")));
                     ps.setLong(2, r.getLong(r.fieldIndex("movieId")));
                     ps.setDouble(3, r.getDouble(r.fieldIndex("score")));
                     ps.setInt(4, r.getInt(r.fieldIndex("rank")));
-                    ps.setTimestamp(5, new java.sql.Timestamp(System.currentTimeMillis()));
+                    ps.setString(5, modelVersion);
+                    ps.setTimestamp(6, new java.sql.Timestamp(System.currentTimeMillis()));
                     ps.addBatch();
                     batchSize++;
-                    totalRows++;
                     
                     // Execute batch every 5000 rows for maximum throughput
                     if (batchSize >= 5000) {
@@ -201,6 +246,23 @@ public class BatchAlsJob {
                 JdbcUtils.quietClose(conn);
             }
         });
+
+        // After successful write, switch active_version
+        try {
+            JdbcUtils jdbc = new JdbcUtils(host, port, db, params, user, pwd);
+            Connection conn = jdbc.getConnection();
+            try (PreparedStatement ps2 = conn.prepareStatement(
+                    "INSERT INTO rec_model_meta (id, active_version) VALUES (1, ?) ON DUPLICATE KEY UPDATE active_version=VALUES(active_version)")) {
+                ps2.setString(1, modelVersion);
+                ps2.executeUpdate();
+                log.info("Switched active model_version to {}", modelVersion);
+            } finally {
+                JdbcUtils.quietClose(conn);
+            }
+        } catch (Exception e) {
+            log.error("Failed to update rec_model_meta", e);
+            throw new RuntimeException(e);
+        }
 
         log.info("ALS recommendations written to MySQL.");
         spark.stop();

@@ -17,12 +17,17 @@ async function getMyRecommendations(req, res, next) {
     const skip = (parseInt(page) - 1) * parseInt(pageSize);
     const take = parseInt(pageSize);
 
-    // 并行查询：推荐列表 + 总数
+    // 读取当前激活版本
+    const meta = await prisma.rec_model_meta.findUnique({ where: { id: 1 } });
+    const activeVersion = meta?.active_version || 'v0';
+
+    // 并行查询：推荐列表 + 总数（限制为激活版本）
     const [recommendations, total] = await Promise.all([
       prisma.recommendation.findMany({
         where: {
           userId: BigInt(userId),
-          algorithm: algorithm
+          algorithm: algorithm,
+          model_version: activeVersion
         },
         include: {
           movie: {
@@ -47,7 +52,8 @@ async function getMyRecommendations(req, res, next) {
       prisma.recommendation.count({
         where: {
           userId: BigInt(userId),
-          algorithm: algorithm
+          algorithm: algorithm,
+          model_version: activeVersion
         }
       })
     ]);
@@ -94,7 +100,8 @@ async function getMyRecommendations(req, res, next) {
           totalPages: Math.ceil(total / parseInt(pageSize))
         },
         isPersonalized: true,
-        algorithm: algorithm
+        algorithm: algorithm,
+        modelVersion: activeVersion
       }
     });
 

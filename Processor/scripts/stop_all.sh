@@ -35,7 +35,7 @@ fi
 
 # 停止 RatingsIngestJob
 echo ""
-echo -e "${YELLOW}[2/3] 停止 RatingsIngestJob...${NC}"
+echo -e "${YELLOW}[2/4] 停止 RatingsIngestJob...${NC}"
 if [ -f "$LOG_DIR/ratings-ingest.pid" ]; then
     RATINGS_PID=$(cat $LOG_DIR/ratings-ingest.pid)
     if kill -0 $RATINGS_PID 2>/dev/null; then
@@ -51,7 +51,7 @@ fi
 
 # 停止 MoviesIngestJob
 echo ""
-echo -e "${YELLOW}[3/3] 停止 MoviesIngestJob...${NC}"
+echo -e "${YELLOW}[3/4] 停止 MoviesIngestJob...${NC}"
 if [ -f "$LOG_DIR/movies-ingest.pid" ]; then
     MOVIES_PID=$(cat $LOG_DIR/movies-ingest.pid)
     if kill -0 $MOVIES_PID 2>/dev/null; then
@@ -63,6 +63,22 @@ if [ -f "$LOG_DIR/movies-ingest.pid" ]; then
     rm -f $LOG_DIR/movies-ingest.pid
 else
     echo -e "${YELLOW}   ⚠️  找不到 MoviesIngestJob PID 文件${NC}"
+fi
+
+# 停止 RealtimeRecBackfillJob
+echo ""
+echo -e "${YELLOW}[4/4] 停止 RealtimeRecBackfillJob...${NC}"
+if [ -f "$LOG_DIR/realtime-rec-backfill.pid" ]; then
+    REALTIME_PID=$(cat $LOG_DIR/realtime-rec-backfill.pid)
+    if kill -0 $REALTIME_PID 2>/dev/null; then
+        kill $REALTIME_PID
+        echo -e "${GREEN}   ✓ RealtimeRecBackfillJob 已停止 (PID: $REALTIME_PID)${NC}"
+    else
+        echo -e "${YELLOW}   ⚠️  RealtimeRecBackfillJob 未运行${NC}"
+    fi
+    rm -f $LOG_DIR/realtime-rec-backfill.pid
+else
+    echo -e "${YELLOW}   ⚠️  找不到 RealtimeRecBackfillJob PID 文件${NC}"
 fi
 
 # 额外清理：停止所有相关的 Spark 进程（可选，谨慎使用）
