@@ -5,8 +5,8 @@ mysql:
   host: hadoop-master
   port: 3306
   database: movie
-  user: recsys
-  password: recsys_password_123  # 专用应用用户
+  user: root
+  password: 124578  # ⚠️ 请修改为实际密码
   params: "useSSL=false&serverTimezone=UTC&characterEncoding=utf8&allowPublicKeyRetrieval=true"
 
 kafka:
