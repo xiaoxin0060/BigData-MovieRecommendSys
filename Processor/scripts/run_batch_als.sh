@@ -32,6 +32,25 @@ if [ ! -f "$APP_JAR" ]; then
     exit 1
 fi
 
+# 检查 SPARK_HOME 是否配置（支持自动检测）
+if [ -z "$SPARK_HOME" ]; then
+    # 尝试自动检测常见路径
+    if [ -d "/opt/spark" ] && [ -f "/opt/spark/bin/spark-submit" ]; then
+        export SPARK_HOME=/opt/spark
+        echo -e "${YELLOW}   ℹ️  自动检测到 SPARK_HOME=/opt/spark${NC}"
+    else
+        echo -e "${RED}❌ 错误: SPARK_HOME 环境变量未设置${NC}"
+        echo "   请先配置 SPARK_HOME，例如: export SPARK_HOME=/opt/spark"
+        exit 1
+    fi
+fi
+
+if [ ! -f "$SPARK_HOME/bin/spark-submit" ]; then
+    echo -e "${RED}❌ 错误: 找不到 spark-submit 命令${NC}"
+    echo "   路径: $SPARK_HOME/bin/spark-submit"
+    exit 1
+fi
+
 echo -e "${YELLOW}训练参数（三节点集群 4c10g+4c8g+4c8g - 均衡优化 + 防倾斜模式）:${NC}"
 echo -e "  - 模式: YARN 集群 (3 Executors × 3 cores，强制预分配)"
 echo -e "  - 内存: Driver 2GB, Executor 3GB + 512MB overhead × 3"
@@ -49,7 +68,7 @@ echo ""
 START_TIME=$(date +%s)
 
 SUBMIT_CMD=(
-  spark-submit
+  "$SPARK_HOME/bin/spark-submit"
   --master yarn
   --deploy-mode "$DEPLOY_MODE"
   --class com.yourorg.recsys.batch.BatchAlsJob

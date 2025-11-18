@@ -1,17 +1,17 @@
 /*
  Navicat Premium Dump SQL
 
- Source Server         : remote_sql
+ Source Server         : Zerozip
  Source Server Type    : MySQL
  Source Server Version : 80043 (8.0.43-0ubuntu0.22.04.2)
- Source Host           : 110.42.61.85:6001
+ Source Host           : 192.168.150.130:3306
  Source Schema         : movie
 
  Target Server Type    : MySQL
  Target Server Version : 80043 (8.0.43-0ubuntu0.22.04.2)
  File Encoding         : 65001
 
- Date: 28/10/2025 17:28:30
+ Date: 18/11/2025 00:56:04
 */
 
 SET NAMES utf8mb4;
@@ -91,15 +91,17 @@ CREATE TABLE `recommendation`  (
   `movieId` bigint NOT NULL COMMENT '推荐的电影ID',
   `score` decimal(10, 8) NOT NULL COMMENT '推荐分数（越高越推荐）',
   `rank` int NULL DEFAULT NULL COMMENT '推荐排名（1=最推荐）',
+  `algorithm` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT 'ALS' COMMENT '推荐算法名称',
   `model_version` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'v0' COMMENT '模型版本号',
   `created_at` datetime NULL DEFAULT CURRENT_TIMESTAMP COMMENT '推荐生成时间',
-  `algorithm` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT 'ALS' COMMENT '推荐算法名称',
   PRIMARY KEY (`id`) USING BTREE,
-  INDEX `idx_userId_score`(`userId` ASC, `score` DESC) USING BTREE COMMENT '按用户查询推荐结果并按分数降序',
+  UNIQUE INDEX `ux_user_movie_version`(`userId` ASC, `movieId` ASC, `model_version` ASC) USING BTREE COMMENT '同一版本只保留一条',
+  INDEX `idx_userId_score`(`userId` ASC, `score` DESC) USING BTREE,
+  INDEX `idx_model_version`(`model_version` ASC) USING BTREE,
   INDEX `idx_movieId`(`movieId` ASC) USING BTREE,
   CONSTRAINT `fk_recommendation_movie` FOREIGN KEY (`movieId`) REFERENCES `movie` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
   CONSTRAINT `fk_recommendation_user` FOREIGN KEY (`userId`) REFERENCES `user` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
-) ENGINE = InnoDB AUTO_INCREMENT = 3332565 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '推荐结果表（由 Spark 离线计算生成）' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 9765011 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '推荐结果表（由 Spark 离线计算生成）' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for stg_ratings
@@ -138,7 +140,7 @@ CREATE TABLE `user`  (
 -- ----------------------------
 DROP PROCEDURE IF EXISTS `migrate_movie_to_init`;
 delimiter ;;
-CREATE PROCEDURE `migrate_movie_to_init`()
+CREATE DEFINER=`root`@`localhost` PROCEDURE `migrate_movie_to_init`()
 BEGIN
   DECLARE v_exists INT DEFAULT 0;
 
@@ -302,7 +304,7 @@ delimiter ;
 -- ----------------------------
 DROP PROCEDURE IF EXISTS `sp_safe_migrate_to_init_v20251028`;
 delimiter ;;
-CREATE PROCEDURE `sp_safe_migrate_to_init_v20251028`()
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_safe_migrate_to_init_v20251028`()
 BEGIN
   DECLARE v_exists INT DEFAULT 0;
 
@@ -512,7 +514,7 @@ delimiter ;
 -- ----------------------------
 DROP PROCEDURE IF EXISTS `sp_safe_migrate_to_init_v20251028a`;
 delimiter ;;
-CREATE PROCEDURE `sp_safe_migrate_to_init_v20251028a`()
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_safe_migrate_to_init_v20251028a`()
 BEGIN
   DECLARE v_exists INT DEFAULT 0;
 

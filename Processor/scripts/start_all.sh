@@ -21,7 +21,12 @@ echo ""
 PROJECT_DIR=$(cd $(dirname $0)/..; pwd)
 SCRIPTS_DIR=$PROJECT_DIR/scripts
 LOG_DIR=$PROJECT_DIR/logs
+
+# 创建日志目录并设置权限
 mkdir -p $LOG_DIR
+chmod 777 $LOG_DIR 2>/dev/null || {
+    echo -e "${YELLOW}   ⚠️  无法设置日志目录权限，请手动执行: sudo chmod 777 $LOG_DIR${NC}"
+}
 
 # JAR 包路径
 APP_JAR=$PROJECT_DIR/target/recsys-processor-1.0.0.jar
@@ -33,11 +38,35 @@ if [ ! -f "$APP_JAR" ]; then
     exit 1
 fi
 
+# 检查 SPARK_HOME 是否配置（支持自动检测）
+if [ -z "$SPARK_HOME" ]; then
+    # 尝试自动检测常见路径
+    if [ -d "/opt/spark" ] && [ -f "/opt/spark/bin/spark-submit" ]; then
+        export SPARK_HOME=/opt/spark
+        echo -e "${YELLOW}   ℹ️  自动检测到 SPARK_HOME=/opt/spark${NC}"
+    else
+        echo -e "${RED}❌ 错误: SPARK_HOME 环境变量未设置${NC}"
+        echo "   请先配置 SPARK_HOME，例如: export SPARK_HOME=/opt/spark"
+        exit 1
+    fi
+fi
+
+if [ ! -f "$SPARK_HOME/bin/spark-submit" ]; then
+    echo -e "${RED}❌ 错误: 找不到 spark-submit 命令${NC}"
+    echo "   路径: $SPARK_HOME/bin/spark-submit"
+    exit 1
+fi
+
+SPARK_SUBMIT="$SPARK_HOME/bin/spark-submit"
+
 echo -e "${YELLOW}[1/5] 检查 Kafka 状态...${NC}"
 # 检查 Kafka 是否运行
 if ! jps | grep -q "Kafka"; then
     echo -e "${YELLOW}   Kafka 未运行，尝试启动...${NC}"
-    # 你的 Kafka 路径是 /opt/kafka (从环境变量读取)
+    # 自动检测 KAFKA_HOME
+    if [ -z "$KAFKA_HOME" ] && [ -d "/opt/kafka" ]; then
+        export KAFKA_HOME=/opt/kafka
+    fi
     if [ -d "$KAFKA_HOME" ]; then
         cd $KAFKA_HOME
         nohup bin/kafka-server-start.sh config/server.properties > $LOG_DIR/kafka.log 2>&1 &
@@ -53,6 +82,10 @@ fi
 echo ""
 echo -e "${YELLOW}[2/5] 检查并创建 Kafka 主题...${NC}"
 # 创建 Kafka 主题（如果不存在）
+# 自动检测 KAFKA_HOME
+if [ -z "$KAFKA_HOME" ] && [ -d "/opt/kafka" ]; then
+    export KAFKA_HOME=/opt/kafka
+fi
 KAFKA_BIN="${KAFKA_HOME:-/opt/kafka}/bin"  # 从环境变量读取，默认 /opt/kafka
 BOOTSTRAP_SERVER="hadoop-master:9092,hadoop-worker1:9092,hadoop-worker2:9092"
 
@@ -85,11 +118,10 @@ echo ""
 echo -e "${YELLOW}[3/5] 跳过电影元数据流处理（仅使用本地 MovieLens 数据）${NC}"
 echo -e "${GREEN}   ℹ️  MoviesIngestJob 已禁用（无需处理外部电影数据）${NC}"
 # 如需启用 TMDB 拉取，取消注释以下代码：
-# nohup spark-submit \
+# nohup $SPARK_SUBMIT \
 #   --master yarn \
 #   --deploy-mode client \
 #   --class com.yourorg.recsys.streaming.MoviesIngestJob \
-#   --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 \
 #   --num-executors 1 \
 #   --executor-cores 1 \
 #   --executor-memory 1g \
@@ -104,12 +136,11 @@ sleep 1
 
 echo ""
 echo -e "${YELLOW}[4/5] 启动流处理作业 - 评分数据入库...${NC}"
-# 启动 RatingsIngestJob（修复：移除 --jars 误用）
-nohup spark-submit \
+# 启动 RatingsIngestJob（Kafka 依赖已打包进 JAR）
+nohup $SPARK_SUBMIT \
   --master yarn \
   --deploy-mode client \
   --class com.yourorg.recsys.streaming.RatingsIngestJob \
-  --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 \
   --num-executors 1 \
   --executor-cores 1 \
   --executor-memory 1g \
@@ -120,19 +151,28 @@ nohup spark-submit \
 
 RATINGS_JOB_PID=$!
 echo $RATINGS_JOB_PID > $LOG_DIR/ratings-ingest.pid
-echo -e "${GREEN}   ✓ RatingsIngestJob 已启动 (PID: $RATINGS_JOB_PID)${NC}"
-echo -e "     日志: $LOG_DIR/ratings-ingest.log"
 
-sleep 3
+# 验证进程是否真正启动
+sleep 2
+if kill -0 $RATINGS_JOB_PID 2>/dev/null; then
+    echo -e "${GREEN}   ✓ RatingsIngestJob 已启动 (PID: $RATINGS_JOB_PID)${NC}"
+    echo -e "     日志: $LOG_DIR/ratings-ingest.log"
+else
+    echo -e "${RED}   ❌ RatingsIngestJob 启动失败${NC}"
+    echo -e "     查看日志: tail -20 $LOG_DIR/ratings-ingest.log"
+    tail -20 $LOG_DIR/ratings-ingest.log
+    exit 1
+fi
+
+sleep 1
 
 echo ""
 echo -e "${YELLOW}[5/5] 启动实时推荐回填作业...${NC}"
-# 启动 RealtimeRecBackfillJob（修复：移除 --jars 误用）
-nohup spark-submit \
+# 启动 RealtimeRecBackfillJob（Kafka 依赖已打包进 JAR）
+nohup $SPARK_SUBMIT \
   --master yarn \
   --deploy-mode client \
   --class com.yourorg.recsys.streaming.RealtimeRecBackfillJob \
-  --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 \
   --num-executors 1 \
   --executor-cores 1 \
   --executor-memory 1g \
@@ -143,10 +183,20 @@ nohup spark-submit \
 
 REALTIME_JOB_PID=$!
 echo $REALTIME_JOB_PID > $LOG_DIR/realtime-rec-backfill.pid
-echo -e "${GREEN}   ✓ RealtimeRecBackfillJob 已启动 (PID: $REALTIME_JOB_PID)${NC}"
-echo -e "     日志: $LOG_DIR/realtime-rec-backfill.log"
 
-sleep 3
+# 验证进程是否真正启动
+sleep 2
+if kill -0 $REALTIME_JOB_PID 2>/dev/null; then
+    echo -e "${GREEN}   ✓ RealtimeRecBackfillJob 已启动 (PID: $REALTIME_JOB_PID)${NC}"
+    echo -e "     日志: $LOG_DIR/realtime-rec-backfill.log"
+else
+    echo -e "${RED}   ❌ RealtimeRecBackfillJob 启动失败${NC}"
+    echo -e "     查看日志: tail -20 $LOG_DIR/realtime-rec-backfill.log"
+    tail -20 $LOG_DIR/realtime-rec-backfill.log
+    exit 1
+fi
+
+sleep 1
 
 echo ""
 echo -e "${YELLOW}[已禁用] TMDB 数据拉取器${NC}"

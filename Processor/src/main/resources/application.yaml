@@ -6,7 +6,7 @@ mysql:
   port: 3306
   database: movie
   user: root
-  password: YourStrongRootPassword123!  # ⚠️ 请修改为实际密码
+  password: 124578  # ⚠️ 请修改为实际密码
   params: "useSSL=false&serverTimezone=UTC&characterEncoding=utf8&allowPublicKeyRetrieval=true&rewriteBatchedStatements=true&cachePrepStmts=true&prepStmtCacheSize=500&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&useLocalSessionState=true&useLocalTransactionState=true&elideSetAutoCommits=true&alwaysSendSetIsolation=false&cacheResultSetMetadata=true&cacheServerConfiguration=true&maintainTimeStats=false"
 
 kafka:

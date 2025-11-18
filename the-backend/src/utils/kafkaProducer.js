@@ -1,11 +1,17 @@
 const { Kafka } = require('kafkajs');
 
-const kafkaBootstrap = process.env.KAFKA_BOOTSTRAP_SERVERS || 'localhost:9092';
+const kafkaBootstrap = process.env.KAFKA_BOOTSTRAP_SERVERS || '192.168.150.130:9092,192.168.150.131:9092,192.168.150.132:9092';
 const clientId = process.env.KAFKA_CLIENT_ID || 'the-backend';
 
 const kafka = new Kafka({
   clientId,
-  brokers: kafkaBootstrap.split(',').map(b => b.trim())
+  brokers: kafkaBootstrap.split(',').map(b => b.trim()),
+  // 强制使用 IP 地址，忽略 broker 返回的主机名
+  retry: {
+    retries: 5
+  },
+  connectionTimeout: 10000,
+  requestTimeout: 30000
 });
 
 const producer = kafka.producer();
