@@ -21,6 +21,10 @@ router.use(disableCaching);
 
 router.get('/overview', authenticate, metricsController.getOverview);
 router.get('/timeseries/ratings', authenticate, metricsController.getRatingsTimeseries);
+router.get('/timeseries/active-users', authenticate, metricsController.getActiveUsersTimeseries);
+router.get('/distribution/ratings', authenticate, metricsController.getRatingsDistribution);
+router.get('/top/movies', authenticate, metricsController.getTopMovies);
+router.get('/top/users', authenticate, metricsController.getTopUsers);
 router.get('/jobs', authenticate, metricsController.getJobs);
 
 module.exports = router;
