@@ -22,11 +22,13 @@ const userApiRoutes = require('./features/users/users.routes');
 const movieApiRoutes = require('./features/movies/movies.routes');
 const ratingApiRoutes = require('./features/ratings/ratings.routes');
 const recommendationApiRoutes = require('./features/recommendations/recommendations.routes');
+const adminMetricsRoutes = require('./features/admin/metrics.routes');
 
 app.use('/api/users', userApiRoutes);
 app.use('/api/movies', movieApiRoutes);
 app.use('/api/ratings', ratingApiRoutes);
 app.use('/api/recommendations', recommendationApiRoutes);
+app.use('/api/admin/metrics', adminMetricsRoutes);
 
 // ===== 健康检查接口 =====
 app.get('/api/health', function(req, res) {

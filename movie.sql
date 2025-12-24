@@ -3,19 +3,36 @@
 
  Source Server         : Zerozip
  Source Server Type    : MySQL
- Source Server Version : 80043 (8.0.43-0ubuntu0.22.04.2)
+ Source Server Version : 80044 (8.0.44-0ubuntu0.22.04.1)
  Source Host           : 192.168.150.130:3306
  Source Schema         : movie
 
  Target Server Type    : MySQL
- Target Server Version : 80043 (8.0.43-0ubuntu0.22.04.2)
+ Target Server Version : 80044 (8.0.44-0ubuntu0.22.04.1)
  File Encoding         : 65001
 
- Date: 18/11/2025 00:56:04
+ Date: 24/12/2025 18:09:45
 */
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
+
+-- ----------------------------
+-- Table structure for monitor_job_heartbeat
+-- ----------------------------
+DROP TABLE IF EXISTS `monitor_job_heartbeat`;
+CREATE TABLE `monitor_job_heartbeat`  (
+  `job_name` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `last_heartbeat_at` datetime NOT NULL,
+  `last_run_start_at` datetime NULL DEFAULT NULL,
+  `last_run_end_at` datetime NULL DEFAULT NULL,
+  `last_batch_size` bigint NULL DEFAULT NULL,
+  `last_batch_duration_ms` bigint NULL DEFAULT NULL,
+  `model_version` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL,
+  `metrics_json` json NULL,
+  PRIMARY KEY (`job_name`) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for movie
@@ -67,7 +84,7 @@ CREATE TABLE `rating`  (
   INDEX `idx_timestamp`(`timestamp` ASC) USING BTREE,
   CONSTRAINT `fk_rating_movie` FOREIGN KEY (`movieId`) REFERENCES `movie` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
   CONSTRAINT `fk_rating_user` FOREIGN KEY (`userId`) REFERENCES `user` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
-) ENGINE = InnoDB AUTO_INCREMENT = 37190172 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '用户评分表' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 37190187 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '用户评分表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for rec_model_meta
@@ -101,7 +118,7 @@ CREATE TABLE `recommendation`  (
   INDEX `idx_movieId`(`movieId` ASC) USING BTREE,
   CONSTRAINT `fk_recommendation_movie` FOREIGN KEY (`movieId`) REFERENCES `movie` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
   CONSTRAINT `fk_recommendation_user` FOREIGN KEY (`userId`) REFERENCES `user` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
-) ENGINE = InnoDB AUTO_INCREMENT = 9765011 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '推荐结果表（由 Spark 离线计算生成）' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 9765041 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '推荐结果表（由 Spark 离线计算生成）' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for stg_ratings
@@ -133,7 +150,7 @@ CREATE TABLE `user`  (
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `uni_userAccount`(`userAccount` ASC) USING BTREE,
   UNIQUE INDEX `uk_mlUserId`(`mlUserId` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 322543 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '用户表' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 322544 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '用户表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Procedure structure for migrate_movie_to_init

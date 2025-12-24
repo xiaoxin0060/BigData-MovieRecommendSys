@@ -76,7 +76,9 @@ public class RealtimeRecBackfillJob {
                     if (batch.isEmpty()) return;
 
                     batch.persist();
-                    log.info("Realtime backfill processing batch {} with {} rows", batchId, batch.count());
+                    long batchStartMs = System.currentTimeMillis();
+                    long batchSize = batch.count();
+                    log.info("Realtime backfill processing batch {} with {} rows", batchId, batchSize);
 
                     // 聚合到用户维度：收集该批用户的评分列表
                     Dataset<Row> perUser = batch
@@ -169,6 +171,17 @@ public class RealtimeRecBackfillJob {
                         upsertRecommendations(host, port, db, params, user, pwd, userId, activeVersion, recs, recScores);
                     }
 
+                    long durationMs = System.currentTimeMillis() - batchStartMs;
+                    try {
+                        upsertJobHeartbeat(host, port, db, params, user, pwd,
+                                "realtime_rec_backfill", "RUNNING",
+                                null, null,
+                                batchSize, durationMs,
+                                activeVersion,
+                                null);
+                    } catch (Exception e) {
+                        log.warn("Failed to update monitor_job_heartbeat for RealtimeRecBackfillJob", e);
+                    }
                     batch.unpersist();
                 })
                 .option("checkpointLocation", cfg.getString("spark.checkpointBase", "hdfs:///checkpoints/recsys") + "/realtime-rec-backfill")
@@ -371,6 +384,79 @@ public class RealtimeRecBackfillJob {
         } catch (Exception e) {
             if (conn != null) conn.rollback();
             throw e;
+        } finally {
+            JdbcUtils.quietClose(ps);
+            JdbcUtils.quietClose(conn);
+        }
+    }
+
+    private static void upsertJobHeartbeat(String host,
+                                           int port,
+                                           String db,
+                                           String params,
+                                           String user,
+                                           String pwd,
+                                           String jobName,
+                                           String status,
+                                           java.sql.Timestamp lastRunStartAt,
+                                           java.sql.Timestamp lastRunEndAt,
+                                           Long lastBatchSize,
+                                           Long lastBatchDurationMs,
+                                           String modelVersion,
+                                           String metricsJson) throws Exception {
+        JdbcUtils jdbc = new JdbcUtils(host, port, db, params, user, pwd);
+        Connection conn = null;
+        PreparedStatement ps = null;
+        try {
+            conn = jdbc.getConnection();
+            String sql = "INSERT INTO monitor_job_heartbeat " +
+                    "(job_name, status, last_heartbeat_at, last_run_start_at, last_run_end_at, " +
+                    " last_batch_size, last_batch_duration_ms, model_version, metrics_json) " +
+                    "VALUES (?, ?, NOW(), ?, ?, ?, ?, ?, ?) " +
+                    "ON DUPLICATE KEY UPDATE " +
+                    "status = VALUES(status), " +
+                    "last_heartbeat_at = NOW(), " +
+                    "last_run_start_at = COALESCE(VALUES(last_run_start_at), last_run_start_at), " +
+                    "last_run_end_at = COALESCE(VALUES(last_run_end_at), last_run_end_at), " +
+                    "last_batch_size = VALUES(last_batch_size), " +
+                    "last_batch_duration_ms = VALUES(last_batch_duration_ms), " +
+                    "model_version = COALESCE(VALUES(model_version), model_version), " +
+                    "metrics_json = VALUES(metrics_json)";
+            ps = conn.prepareStatement(sql);
+            ps.setString(1, jobName);
+            ps.setString(2, status);
+            if (lastRunStartAt != null) {
+                ps.setTimestamp(3, lastRunStartAt);
+            } else {
+                ps.setNull(3, java.sql.Types.TIMESTAMP);
+            }
+            if (lastRunEndAt != null) {
+                ps.setTimestamp(4, lastRunEndAt);
+            } else {
+                ps.setNull(4, java.sql.Types.TIMESTAMP);
+            }
+            if (lastBatchSize != null) {
+                ps.setLong(5, lastBatchSize);
+            } else {
+                ps.setNull(5, java.sql.Types.BIGINT);
+            }
+            if (lastBatchDurationMs != null) {
+                ps.setLong(6, lastBatchDurationMs);
+            } else {
+                ps.setNull(6, java.sql.Types.BIGINT);
+            }
+            if (modelVersion != null) {
+                ps.setString(7, modelVersion);
+            } else {
+                ps.setNull(7, java.sql.Types.VARCHAR);
+            }
+            // MySQL JSON 列在某些 Connector/J + server-prepared 组合下对 VARCHAR 绑定会报错
+            if (metricsJson != null) {
+                ps.setObject(8, metricsJson, java.sql.Types.OTHER);
+            } else {
+                ps.setNull(8, java.sql.Types.OTHER);
+            }
+            ps.executeUpdate();
         } finally {
             JdbcUtils.quietClose(ps);
             JdbcUtils.quietClose(conn);

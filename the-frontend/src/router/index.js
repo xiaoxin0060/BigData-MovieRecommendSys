@@ -69,6 +69,17 @@ const router = createRouter({
       }
     },
     
+    // ===== 管理员仪表盘（需要登录，先不做权限区分） =====
+    {
+      path: '/admin/dashboard',
+      name: 'AdminDashboard',
+      component: () => import('@/views/AdminDashboard.vue'),
+      meta: {
+        title: '系统监控仪表盘',
+        requiresAuth: true
+      }
+    },
+
     // ===== 404 页面 =====
     {
       path: '/:pathMatch(.*)*',

@@ -33,6 +33,8 @@ public class BatchAlsJob {
 
         Config cfg = new Config(configPath);
 
+        long jobStartTimeMs = System.currentTimeMillis();
+
         SparkSession spark = SparkSession.builder()
                 .appName("BatchAlsJob")
                 .getOrCreate();
@@ -127,6 +129,23 @@ public class BatchAlsJob {
         long trainingCount = training.count();
         log.info("Training ALS model with {} ratings...", trainingCount);
 
+        try {
+            String metricsJson = "{" +
+                    "\"trainingRatings\":" + trainingCount + "," +
+                    "\"totalRatings\":" + totalRatings + "," +
+                    "\"uniqueUsers\":" + uniqueUsers + "," +
+                    "\"uniqueMovies\":" + uniqueMovies +
+                    "}";
+            upsertJobHeartbeat(host, port, db, params, user, pwd,
+                    "batch_als", "RUNNING",
+                    new java.sql.Timestamp(jobStartTimeMs), null,
+                    null, null,
+                    null,
+                    metricsJson);
+        } catch (Exception e) {
+            log.warn("Failed to update monitor_job_heartbeat before training", e);
+        }
+
         int rank = cfg.getInt("als.rank", 64);
         double regParam = Double.parseDouble(cfg.getString("als.regParam", "0.2"));
         int maxIter = cfg.getInt("als.maxIter", 15);
@@ -161,7 +180,7 @@ public class BatchAlsJob {
             throw new RuntimeException(e);
         }
 
-        int topN = cfg.getInt("als.topN", 50);
+        int topN = cfg.getInt("als.topN", 30);
         Dataset<Row> recs = model.recommendForAllUsers(topN)
                 .select(col("user"), explode(col("recommendations")).as("rec"))
                 .select(col("user").cast(DataTypes.LongType).as("userId"),
@@ -181,7 +200,7 @@ public class BatchAlsJob {
         log.info("Writing {} recommendations to MySQL...", recsCount);
         
         // Force repartition and coalesce to optimal size for parallel writes
-        int numWritePartitions = Math.max(40, (int)(recsCount / 50000));  // ~50k records per partition
+        int numWritePartitions = (int) Math.max(8, Math.min(64, recsCount / 50000));  // ~50k records per partition
         log.info("Repartitioning to {} partitions for parallel writing...", numWritePartitions);
         
         ranked.repartition(numWritePartitions)
@@ -201,8 +220,7 @@ public class BatchAlsJob {
                 stmt.close();
                 
                 String sql = "INSERT INTO recommendation (userId, movieId, score, `rank`, algorithm, model_version, created_at) " +
-                        "VALUES (?, ?, ?, ?, 'ALS', ?, ?) " +
-                        "ON DUPLICATE KEY UPDATE score=VALUES(score), `rank`=VALUES(`rank`), algorithm=VALUES(algorithm), created_at=VALUES(created_at)";
+                        "VALUES (?, ?, ?, ?, 'ALS', ?, ?)";
                 ps = conn.prepareStatement(sql);
                 
                 int batchSize = 0;
@@ -218,7 +236,7 @@ public class BatchAlsJob {
                     batchSize++;
                     
                     // Execute batch every 5000 rows for maximum throughput
-                    if (batchSize >= 5000) {
+                    if (batchSize >= 20000) {
                         ps.executeBatch();
                         conn.commit();
                         batchSize = 0;
@@ -265,7 +283,100 @@ public class BatchAlsJob {
         }
 
         log.info("ALS recommendations written to MySQL.");
+        try {
+            long jobEndTimeMs = System.currentTimeMillis();
+            long durationMs = jobEndTimeMs - jobStartTimeMs;
+            String metricsJson = "{" +
+                    "\"trainingRatings\":" + trainingCount + "," +
+                    "\"totalRatings\":" + totalRatings + "," +
+                    "\"uniqueUsers\":" + uniqueUsers + "," +
+                    "\"uniqueMovies\":" + uniqueMovies + "," +
+                    "\"recsWritten\":" + recsCount + "," +
+                    "\"durationMs\":" + durationMs +
+                    "}";
+            upsertJobHeartbeat(host, port, db, params, user, pwd,
+                    "batch_als", "SUCCEEDED",
+                    new java.sql.Timestamp(jobStartTimeMs), new java.sql.Timestamp(jobEndTimeMs),
+                    null, durationMs,
+                    modelVersion,
+                    metricsJson);
+        } catch (Exception e) {
+            log.warn("Failed to update monitor_job_heartbeat after training", e);
+        }
         spark.stop();
+    }
+
+    private static void upsertJobHeartbeat(String host,
+                                           int port,
+                                           String db,
+                                           String params,
+                                           String user,
+                                           String pwd,
+                                           String jobName,
+                                           String status,
+                                           java.sql.Timestamp lastRunStartAt,
+                                           java.sql.Timestamp lastRunEndAt,
+                                           Long lastBatchSize,
+                                           Long lastBatchDurationMs,
+                                           String modelVersion,
+                                           String metricsJson) throws Exception {
+        JdbcUtils jdbc = new JdbcUtils(host, port, db, params, user, pwd);
+        Connection conn = null;
+        PreparedStatement ps = null;
+        try {
+            conn = jdbc.getConnection();
+            String sql = "INSERT INTO monitor_job_heartbeat " +
+                    "(job_name, status, last_heartbeat_at, last_run_start_at, last_run_end_at, " +
+                    " last_batch_size, last_batch_duration_ms, model_version, metrics_json) " +
+                    "VALUES (?, ?, NOW(), ?, ?, ?, ?, ?, ?) " +
+                    "ON DUPLICATE KEY UPDATE " +
+                    "status = VALUES(status), " +
+                    "last_heartbeat_at = NOW(), " +
+                    "last_run_start_at = COALESCE(VALUES(last_run_start_at), last_run_start_at), " +
+                    "last_run_end_at = COALESCE(VALUES(last_run_end_at), last_run_end_at), " +
+                    "last_batch_size = VALUES(last_batch_size), " +
+                    "last_batch_duration_ms = VALUES(last_batch_duration_ms), " +
+                    "model_version = COALESCE(VALUES(model_version), model_version), " +
+                    "metrics_json = VALUES(metrics_json)";
+            ps = conn.prepareStatement(sql);
+            ps.setString(1, jobName);
+            ps.setString(2, status);
+            if (lastRunStartAt != null) {
+                ps.setTimestamp(3, lastRunStartAt);
+            } else {
+                ps.setNull(3, java.sql.Types.TIMESTAMP);
+            }
+            if (lastRunEndAt != null) {
+                ps.setTimestamp(4, lastRunEndAt);
+            } else {
+                ps.setNull(4, java.sql.Types.TIMESTAMP);
+            }
+            if (lastBatchSize != null) {
+                ps.setLong(5, lastBatchSize);
+            } else {
+                ps.setNull(5, java.sql.Types.BIGINT);
+            }
+            if (lastBatchDurationMs != null) {
+                ps.setLong(6, lastBatchDurationMs);
+            } else {
+                ps.setNull(6, java.sql.Types.BIGINT);
+            }
+            if (modelVersion != null) {
+                ps.setString(7, modelVersion);
+            } else {
+                ps.setNull(7, java.sql.Types.VARCHAR);
+            }
+            // MySQL JSON 列在某些 Connector/J + server-prepared 组合下对 VARCHAR 绑定会报错
+            if (metricsJson != null) {
+                ps.setObject(8, metricsJson, java.sql.Types.OTHER);
+            } else {
+                ps.setNull(8, java.sql.Types.OTHER);
+            }
+            ps.executeUpdate();
+        } finally {
+            JdbcUtils.quietClose(ps);
+            JdbcUtils.quietClose(conn);
+        }
     }
 }
 
